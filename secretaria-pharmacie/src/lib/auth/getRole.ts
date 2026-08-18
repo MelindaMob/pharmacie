@@ -26,7 +26,8 @@ export async function getUserRole() {
     .from('clients')
     .select('id')
     .eq('auth_user_id', user.id)
-    .single()
+    .limit(1)
+    .maybeSingle()
   if (client) return { role: 'client' as const, id: client.id }
 
   return null

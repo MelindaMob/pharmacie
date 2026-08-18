@@ -1,7 +1,7 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   let response = NextResponse.next({ request })
 
   const supabase = createServerClient(
@@ -29,9 +29,10 @@ export async function middleware(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser()
 
-  const isPharmacieRoute = request.nextUrl.pathname.startsWith('/dashboard-pharmacie')
-  const isClientRoute = request.nextUrl.pathname.startsWith('/dashboard-client')
-  const isAdminRoute = request.nextUrl.pathname.startsWith('/admin')
+  const pathname = request.nextUrl.pathname
+  const isPharmacieRoute = pathname.startsWith('/dashboard-pharmacie')
+  const isClientRoute = pathname.startsWith('/dashboard-client')
+  const isAdminRoute = pathname.startsWith('/admin')
 
   if ((isPharmacieRoute || isClientRoute || isAdminRoute) && !user) {
     return NextResponse.redirect(new URL('/connexion', request.url))
@@ -42,8 +43,11 @@ export async function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
+    '/dashboard-pharmacie',
     '/dashboard-pharmacie/:path*',
+    '/dashboard-client',
     '/dashboard-client/:path*',
+    '/admin',
     '/admin/:path*',
   ],
 }
