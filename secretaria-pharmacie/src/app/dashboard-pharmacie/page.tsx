@@ -9,6 +9,7 @@ import GenererCreneauxButton from './GenererCreneauxButton'
 import AdresseForm from './AdresseForm'
 import TypesRdvForm from './TypesRdvForm'
 import DelaiAnnulationForm from './DelaiAnnulationForm'
+import BoutonDeconnexion from '@/components/BoutonDeconnexion'
 
 export const dynamic = 'force-dynamic'
 
@@ -39,7 +40,7 @@ export default async function DashboardPharmaciePage() {
   const finPeriode = addDays(debutPeriode, 28) // 4 semaines glissantes
 
   const selectCreneaux =
-    '*, types_rdv(nom), reservations(client_nom, client_telephone, statut)'
+    '*, types_rdv(nom), reservations(id, client_nom, client_telephone, statut)'
 
   // Même sur 4 semaines, les doublons (1 créneau × N types) dépassent souvent 1000 lignes.
   // On charge la période + on force l'inclusion des réservés.
@@ -73,7 +74,10 @@ export default async function DashboardPharmaciePage() {
 
   return (
     <div className="p-6">
-      <h1 className="text-2xl font-bold mb-4">Votre dashboard</h1>
+      <div className="flex items-center justify-between mb-4">
+        <h1 className="text-2xl font-bold">Votre dashboard</h1>
+        <BoutonDeconnexion />
+      </div>
       <AdresseForm pharmacieId={role.id} adresseInitiale={pharmacie?.adresse} />
       <TypesRdvForm
         pharmacieId={role.id}

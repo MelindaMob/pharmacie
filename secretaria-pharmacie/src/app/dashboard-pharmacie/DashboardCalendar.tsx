@@ -5,6 +5,7 @@ import { Calendar, dateFnsLocalizer } from 'react-big-calendar'
 import { format, parse, startOfWeek, getDay } from 'date-fns'
 import { fr } from 'date-fns/locale'
 import 'react-big-calendar/lib/css/react-big-calendar.css'
+import DetailReservation from './DetailReservation'
 
 const locales = { fr }
 const localizer = dateFnsLocalizer({
@@ -15,6 +16,13 @@ const localizer = dateFnsLocalizer({
   locales,
 })
 
+type ReservationInfo = {
+  id: string
+  client_nom: string
+  client_telephone: string
+  statut: string
+}
+
 type Creneau = {
   id: string
   debut: string
@@ -22,11 +30,7 @@ type Creneau = {
   statut: string
   type_rdv_id: string
   types_rdv: { nom: string } | null
-  reservations: {
-    client_nom: string
-    client_telephone: string
-    statut: string
-  }[]
+  reservations: ReservationInfo[]
 }
 
 type CalendarEvent = {
@@ -36,18 +40,16 @@ type CalendarEvent = {
   end: Date
   resource: {
     statut: string
-    reservation:
-      | {
-          client_nom: string
-          client_telephone: string
-          statut: string
-        }
-      | undefined
+    reservation: ReservationInfo | undefined
   }
 }
 
 export default function DashboardCalendar({ creneaux }: { creneaux: Creneau[] }) {
   const [filtreType, setFiltreType] = useState<string>('tous')
+  const [reservationOuverte, setReservationOuverte] = useState<{
+    id: string
+    clientNom: string
+  } | null>(null)
 
   const typesDisponibles = useMemo(() => {
     const map = new Map<string, string>()
@@ -128,8 +130,24 @@ export default function DashboardCalendar({ creneaux }: { creneaux: Creneau[] })
           views={['week', 'day', 'month']}
           defaultView="week"
           culture="fr"
+          onSelectEvent={(event: CalendarEvent) => {
+            if (event.resource.statut === 'reserve' && event.resource.reservation?.id) {
+              setReservationOuverte({
+                id: event.resource.reservation.id,
+                clientNom: event.resource.reservation.client_nom,
+              })
+            }
+          }}
         />
       </div>
+
+      {reservationOuverte && (
+        <DetailReservation
+          reservationId={reservationOuverte.id}
+          clientNom={reservationOuverte.clientNom}
+          onClose={() => setReservationOuverte(null)}
+        />
+      )}
     </div>
   )
 }

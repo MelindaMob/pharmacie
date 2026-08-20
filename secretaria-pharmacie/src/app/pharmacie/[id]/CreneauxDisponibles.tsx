@@ -14,6 +14,65 @@ type Alternative = {
   telephone: string
   distance_km: number
   prochain_creneau: string
+  creneaux_proches: string[]
+}
+
+function debutDuJourLocal(dateStr: string) {
+  return new Date(
+    Number(dateStr.slice(0, 4)),
+    Number(dateStr.slice(5, 7)) - 1,
+    Number(dateStr.slice(8, 10)),
+    0,
+    0,
+    0
+  )
+}
+
+function minutesDepuisMinuitLocales(date: Date) {
+  return date.getHours() * 60 + date.getMinutes()
+}
+
+function minutesUtcPourHeureLocale(dateStr: string, heureStr: string) {
+  const [h, m] = heureStr.split(':').map(Number)
+  const momentLocal = new Date(
+    Number(dateStr.slice(0, 4)),
+    Number(dateStr.slice(5, 7)) - 1,
+    Number(dateStr.slice(8, 10)),
+    h,
+    m,
+    0
+  )
+  return momentLocal.getUTCHours() * 60 + momentLocal.getUTCMinutes()
+}
+
+function choisirCreneauxProches(
+  slots: { debut: string }[],
+  dateSouhaitee: string,
+  heureSouhaitee: string
+) {
+  const dateVoulue = debutDuJourLocal(dateSouhaitee)
+  const minutesVoulues = heureSouhaitee
+    ? (() => {
+        const [h, m] = heureSouhaitee.split(':').map(Number)
+        return h * 60 + m
+      })()
+    : null
+
+  const duJour = slots.filter((c) => isSameDay(new Date(c.debut), dateVoulue))
+  const pool = duJour.length > 0 ? duJour : slots
+
+  const tries = [...pool].sort((a, b) => {
+    if (minutesVoulues === null) {
+      return new Date(a.debut).getTime() - new Date(b.debut).getTime()
+    }
+    const minutesA = minutesDepuisMinuitLocales(new Date(a.debut))
+    const minutesB = minutesDepuisMinuitLocales(new Date(b.debut))
+    const diff = Math.abs(minutesA - minutesVoulues) - Math.abs(minutesB - minutesVoulues)
+    if (diff !== 0) return diff
+    return new Date(a.debut).getTime() - new Date(b.debut).getTime()
+  })
+
+  return tries.slice(0, 4).map((c) => c.debut)
 }
 
 const NB_JOURS_RECHERCHE_ETENDUE = 3 // si rien le jour demandé, on regarde jusqu'à 3 jours après avant de proposer le fallback
@@ -98,19 +157,64 @@ export default function CreneauxDisponibles({
     const chercherAlternatives = async () => {
       setChargementAlternatives(true)
       const supabase = createClient()
-
+      const debutJourLocal = debutDuJourLocal(dateSouhaitee)
       const minutesVoulues = heureSouhaitee
-        ? parseInt(heureSouhaitee.split(':')[0]) * 60 + parseInt(heureSouhaitee.split(':')[1])
+        ? minutesUtcPourHeureLocale(dateSouhaitee, heureSouhaitee)
         : null
 
-      const { data } = await supabase.rpc('rechercher_alternatives_groupement', {
+      const { data, error } = await supabase.rpc('rechercher_alternatives_groupement', {
         p_pharmacie_id: pharmacieId,
         p_type_rdv_nom: typeNom,
-        p_date_min: new Date(dateSouhaitee).toISOString(),
+        p_date_min: debutJourLocal.toISOString(),
         p_heure_souhaitee_minutes: minutesVoulues,
       })
+
+      if (error || !data) {
+        setChargementAlternatives(false)
+        setAlternatives([])
+        return
+      }
+
+      const finRecherche = addDays(debutJourLocal, NB_JOURS_RECHERCHE_ETENDUE + 1)
+      const alternativesRpc = (data as Omit<Alternative, 'creneaux_proches'>[]) ?? []
+
+      const alternativesEnrichies = await Promise.all(
+        alternativesRpc.map(async (alt) => {
+          const { data: typeAlt } = await supabase
+            .from('types_rdv')
+            .select('id')
+            .eq('pharmacie_id', alt.pharmacie_id)
+            .eq('nom', typeNom)
+            .maybeSingle()
+
+          if (!typeAlt) {
+            return { ...alt, creneaux_proches: [alt.prochain_creneau] }
+          }
+
+          const { data: slots } = await supabase
+            .from('creneaux')
+            .select('debut')
+            .eq('pharmacie_id', alt.pharmacie_id)
+            .eq('type_rdv_id', typeAlt.id)
+            .eq('statut', 'disponible')
+            .gte('debut', debutJourLocal.toISOString())
+            .lt('debut', finRecherche.toISOString())
+            .order('debut', { ascending: true })
+            .limit(100)
+
+          const creneauxProches = choisirCreneauxProches(slots ?? [], dateSouhaitee, heureSouhaitee)
+          const prochain = creneauxProches[0] ?? alt.prochain_creneau
+
+          return {
+            ...alt,
+            prochain_creneau: prochain,
+            creneaux_proches: creneauxProches.length > 0 ? creneauxProches : [alt.prochain_creneau],
+          }
+        })
+      )
+
       setChargementAlternatives(false)
-      setAlternatives((data as Alternative[] | null) ?? [])
+      setAlternatives(alternativesEnrichies)
     }
 
     chercherAlternatives()
@@ -300,8 +404,18 @@ export default function CreneauxDisponibles({
                     </div>
                     <p className="text-xs text-gray-600">{alt.adresse}</p>
                     <p className="text-xs text-green-700 mt-1">
-                      Disponible dès le {format(new Date(alt.prochain_creneau), "EEEE d MMMM 'à' HH:mm", { locale: fr })}
+                      Créneau le plus proche :{' '}
+                      {format(new Date(alt.prochain_creneau), "EEEE d MMMM 'à' HH:mm", { locale: fr })}
                     </p>
+                    {alt.creneaux_proches.length > 1 && (
+                      <p className="text-xs text-gray-500 mt-0.5">
+                        Aussi :{' '}
+                        {alt.creneaux_proches
+                          .slice(1)
+                          .map((d) => format(new Date(d), 'HH:mm'))
+                          .join(' · ')}
+                      </p>
+                    )}
                   </a>
                 ))}
               </div>

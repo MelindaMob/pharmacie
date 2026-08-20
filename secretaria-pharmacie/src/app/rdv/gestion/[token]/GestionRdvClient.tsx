@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
+import MessagerieInvite from '@/components/MessagerieInvite'
 
 type Reservation = {
   id: string
@@ -72,6 +73,10 @@ export default function GestionRdvClient({
             Le {format(new Date(creneau!.debut), "EEEE d MMMM 'à' HH:mm", { locale: fr })}
           </strong>
         </p>
+      </div>
+
+      <div className="mb-6">
+        <MessagerieInvite token={token} />
       </div>
 
       {erreur && <p className="text-red-600 text-sm mb-3">{erreur}</p>}
