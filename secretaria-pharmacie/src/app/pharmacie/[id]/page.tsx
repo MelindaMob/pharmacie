@@ -34,9 +34,9 @@ export default async function FichePharmaciePage({
     .limit(500)
 
   return (
-    <div className="min-h-screen bg-[var(--color-bg)] py-10 px-4">
-      <div className="max-w-4xl mx-auto grid md:grid-cols-[320px_1fr] gap-6 items-start">
-        <div className="md:sticky md:top-6">
+    <div className="min-h-screen py-8 sm:py-10 px-4">
+      <div className="max-w-4xl mx-auto grid grid-cols-1 md:grid-cols-[300px_1fr] gap-5 sm:gap-6 items-start">
+        <div className="md:sticky md:top-20">
           <PharmacyTicketCard
             nom={pharmacie.nom}
             adresse={pharmacie.adresse}
@@ -45,7 +45,7 @@ export default async function FichePharmaciePage({
           />
         </div>
 
-        <div className="bg-[var(--color-surface)] border border-[var(--color-line)] rounded-xl p-6">
+        <div className="ui-panel p-4 sm:p-6">
           <CreneauxDisponibles
             pharmacieId={pharmacie.id}
             typesRdv={typesRdv ?? []}

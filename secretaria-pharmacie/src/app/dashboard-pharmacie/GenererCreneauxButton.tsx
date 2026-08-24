@@ -26,16 +26,17 @@ export default function GenererCreneauxButton({ pharmacieId }: { pharmacieId: st
   }
 
   return (
-    <div className="mb-6">
+    <div className="ui-panel p-4 sm:p-5 mb-6">
       <button
+        type="button"
         onClick={generer}
         disabled={loading}
-        className="bg-green-600 text-white px-4 py-2 rounded disabled:opacity-50"
+        className="ui-btn-primary w-full sm:w-auto bg-[var(--color-accent)] hover:bg-[var(--color-accent)]/90"
       >
         {loading ? 'Génération...' : 'Générer mes créneaux (4 prochaines semaines)'}
       </button>
-      {message && <p className="mt-2 text-sm">{message}</p>}
-      <p className="text-xs text-gray-500 mt-1">
+      {message && <p className="mt-2 text-sm text-[var(--color-ink)]">{message}</p>}
+      <p className="text-xs text-[var(--color-ink-soft)] mt-2 leading-relaxed">
         À relancer après chaque modification des horaires, ou une fois par semaine pour garder des
         créneaux à venir.
       </p>

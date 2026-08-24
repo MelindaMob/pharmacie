@@ -61,7 +61,7 @@ export default function GestionRdvClient({
 
   if (statut === 'annule') {
     return (
-      <div className="max-w-md mx-auto p-6 text-center">
+      <div className="max-w-md mx-auto px-4 py-8 sm:p-6 text-center">
         <p className="text-lg font-semibold text-[var(--color-ink)]">Rendez-vous annulé</p>
         <p className="text-[var(--color-ink-soft)] mt-2">Ce créneau a été libéré.</p>
       </div>
@@ -69,7 +69,7 @@ export default function GestionRdvClient({
   }
 
   return (
-    <div className="max-w-md mx-auto p-6">
+    <div className="max-w-md mx-auto px-4 py-6 sm:p-6">
       <a
         href={estConnecte ? '/dashboard-client' : '/'}
         className="text-sm text-[var(--color-ink-soft)] hover:text-[var(--color-ink)] mb-4 inline-block"
@@ -80,9 +80,9 @@ export default function GestionRdvClient({
         Votre rendez-vous
       </h1>
 
-      <div className="border border-[var(--color-line)] rounded-lg p-4 mb-4 bg-[var(--color-surface)]">
+      <div className="ui-panel p-4 mb-4">
         <p className="font-semibold text-[var(--color-ink)]">{pharmacie?.nom}</p>
-        <p className="text-sm text-[var(--color-ink-soft)]">{pharmacie?.adresse}</p>
+        <p className="text-sm text-[var(--color-ink-soft)] break-words">{pharmacie?.adresse}</p>
         <p className="text-sm text-[var(--color-ink-soft)] mb-3">{pharmacie?.telephone}</p>
         <p className="text-sm font-[family-name:var(--font-mono)] text-[var(--color-ink)]">
           {format(new Date(creneau!.debut), "EEEE d MMMM 'à' HH:mm", { locale: fr })}
@@ -92,7 +92,7 @@ export default function GestionRdvClient({
       <button
         type="button"
         onClick={() => setMessagerieOuverte(true)}
-        className="w-full mb-3 bg-[var(--color-primary)] hover:bg-[var(--color-primary-hover)] text-white py-2.5 rounded-lg text-sm font-medium transition-colors"
+        className="ui-btn-primary w-full mb-3"
       >
         Envoyer un message
       </button>
@@ -103,14 +103,14 @@ export default function GestionRdvClient({
         type="button"
         onClick={annuler}
         disabled={loading}
-        className="w-full border border-red-600 text-red-600 py-2.5 rounded-lg text-sm disabled:opacity-50"
+        className="w-full border border-red-600 text-red-600 py-2.5 rounded-xl text-sm disabled:opacity-50"
       >
         {loading ? 'Annulation...' : 'Annuler le rendez-vous'}
       </button>
 
       {messagerieOuverte && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
-          <div className="bg-[var(--color-surface)] rounded-xl p-5 max-w-md w-full max-h-[85vh] overflow-y-auto">
+        <div className="fixed inset-0 bg-black/40 flex items-end sm:items-center justify-center z-50 p-0 sm:p-4">
+          <div className="bg-[var(--color-surface)] rounded-t-2xl sm:rounded-2xl p-5 max-w-md w-full max-h-[90vh] overflow-y-auto shadow-xl">
             <div className="flex justify-between items-center mb-4">
               <h2 className="font-[family-name:var(--font-display)] text-lg text-[var(--color-ink)]">
                 Messages

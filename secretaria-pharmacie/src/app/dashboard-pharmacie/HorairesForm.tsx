@@ -55,47 +55,52 @@ export default function HorairesForm({
   }
 
   return (
-    <div className="bg-white rounded-lg border p-4 mb-6">
-      <h2 className="font-semibold mb-3">Horaires d&apos;ouverture</h2>
-      <div className="space-y-2">
+    <div className="ui-panel p-4 sm:p-5 mb-6">
+      <h2 className="font-medium text-[var(--color-ink)] mb-4">Horaires d&apos;ouverture</h2>
+      <div className="space-y-3">
         {JOURS.map(({ key, label }) => (
-          <div key={key} className="flex items-center gap-3">
-            <label className="flex items-center gap-2 w-32">
+          <div
+            key={key}
+            className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 py-2 border-b border-[var(--color-line)] last:border-0"
+          >
+            <label className="flex items-center gap-2 sm:w-32 shrink-0 text-sm">
               <input
                 type="checkbox"
                 checked={!!horaires[key]}
                 onChange={() => toggleJour(key)}
+                className="rounded border-[var(--color-line)]"
               />
               {label}
             </label>
             {horaires[key] && (
-              <>
+              <div className="flex items-center gap-2 pl-6 sm:pl-0">
                 <input
                   type="time"
                   value={horaires[key]!.debut}
                   onChange={(e) => updateHoraire(key, 'debut', e.target.value)}
-                  className="border rounded px-2 py-1"
+                  className="ui-input !w-auto"
                 />
-                <span>à</span>
+                <span className="text-[var(--color-ink-soft)] text-sm">à</span>
                 <input
                   type="time"
                   value={horaires[key]!.fin}
                   onChange={(e) => updateHoraire(key, 'fin', e.target.value)}
-                  className="border rounded px-2 py-1"
+                  className="ui-input !w-auto"
                 />
-              </>
+              </div>
             )}
           </div>
         ))}
       </div>
       <button
+        type="button"
         onClick={enregistrer}
         disabled={saving}
-        className="mt-4 bg-black text-white px-4 py-2 rounded disabled:opacity-50"
+        className="ui-btn-primary mt-4 w-full sm:w-auto"
       >
         {saving ? 'Enregistrement...' : 'Enregistrer les horaires'}
       </button>
-      {message && <p className="mt-2 text-sm">{message}</p>}
+      {message && <p className="mt-2 text-sm text-[var(--color-ink-soft)]">{message}</p>}
     </div>
   )
 }

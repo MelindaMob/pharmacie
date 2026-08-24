@@ -31,30 +31,30 @@ export default async function AdminPage() {
     .eq('statut', 'confirme')
 
   return (
-    <div className="min-h-screen bg-[var(--color-bg)]">
-      <div className="max-w-5xl mx-auto p-6">
-        <div className="sticky top-0 z-20 -mx-6 px-6 py-4 mb-6 flex items-center justify-between gap-8 bg-[var(--color-bg)]">
-          <Logo className="h-9 w-auto" href="/admin" />
+    <div className="min-h-screen">
+      <div className="max-w-5xl mx-auto px-4 py-4 sm:p-6 lg:p-8">
+        <div className="sticky top-0 z-20 -mx-4 px-4 sm:mx-0 sm:px-0 py-3 mb-6 flex items-center justify-between gap-4 sm:gap-8 bg-[color-mix(in_srgb,var(--color-bg)_92%,transparent)] backdrop-blur-md">
+          <Logo className="h-8 sm:h-9 w-auto" href="/admin" />
           <BoutonDeconnexion />
         </div>
         <h1 className="font-[family-name:var(--font-display)] text-2xl text-[var(--color-ink)] mb-6">
           Back-office
         </h1>
 
-        <div className="grid grid-cols-3 gap-4 mb-8">
-          <div className="border border-[var(--color-line)] rounded-lg p-4 bg-[var(--color-surface)]">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 mb-8">
+          <div className="ui-panel p-4">
             <p className="text-sm text-[var(--color-ink-soft)]">Pharmacies</p>
             <p className="text-2xl font-semibold text-[var(--color-ink)]">
               {pharmacies?.length ?? 0}
             </p>
           </div>
-          <div className="border border-[var(--color-line)] rounded-lg p-4 bg-[var(--color-surface)]">
+          <div className="ui-panel p-4">
             <p className="text-sm text-[var(--color-ink-soft)]">Groupements</p>
             <p className="text-2xl font-semibold text-[var(--color-ink)]">
               {groupements?.length ?? 0}
             </p>
           </div>
-          <div className="border border-[var(--color-line)] rounded-lg p-4 bg-[var(--color-surface)]">
+          <div className="ui-panel p-4">
             <p className="text-sm text-[var(--color-ink-soft)]">RDV confirmés</p>
             <p className="text-2xl font-semibold text-[var(--color-ink)]">
               {nbReservations ?? 0}

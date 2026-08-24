@@ -73,21 +73,19 @@ export default function HorairesExceptionnelsForm({
         précise. Pensez à relancer la génération des créneaux après ajout.
       </p>
 
-      <div className="flex flex-wrap items-end gap-3 mb-4">
-        <div>
-          <label className="block text-xs uppercase tracking-wide text-[var(--color-ink-soft)] mb-1.5">
-            Date
-          </label>
+      <div className="flex flex-col sm:flex-wrap sm:flex-row sm:items-end gap-3 mb-4">
+        <div className="w-full sm:w-auto">
+          <label className="ui-label">Date</label>
           <input
             type="date"
             value={date}
             min={format(new Date(), 'yyyy-MM-dd')}
             onChange={(e) => setDate(e.target.value)}
-            className="border border-[var(--color-line)] rounded-lg px-3 py-2 text-sm"
+            className="ui-input"
           />
         </div>
 
-        <div className="flex items-center gap-2 pb-2">
+        <div className="flex items-center gap-2 sm:pb-2">
           <input
             type="checkbox"
             id="ferme"
@@ -101,26 +99,22 @@ export default function HorairesExceptionnelsForm({
 
         {!ferme && (
           <>
-            <div>
-              <label className="block text-xs uppercase tracking-wide text-[var(--color-ink-soft)] mb-1.5">
-                Ouverture
-              </label>
+            <div className="w-full sm:w-auto">
+              <label className="ui-label">Ouverture</label>
               <input
                 type="time"
                 value={debut}
                 onChange={(e) => setDebut(e.target.value)}
-                className="border border-[var(--color-line)] rounded-lg px-3 py-2 text-sm"
+                className="ui-input"
               />
             </div>
-            <div>
-              <label className="block text-xs uppercase tracking-wide text-[var(--color-ink-soft)] mb-1.5">
-                Fermeture
-              </label>
+            <div className="w-full sm:w-auto">
+              <label className="ui-label">Fermeture</label>
               <input
                 type="time"
                 value={fin}
                 onChange={(e) => setFin(e.target.value)}
-                className="border border-[var(--color-line)] rounded-lg px-3 py-2 text-sm"
+                className="ui-input"
               />
             </div>
           </>
@@ -130,7 +124,7 @@ export default function HorairesExceptionnelsForm({
           type="button"
           onClick={ajouter}
           disabled={loading}
-          className="bg-[var(--color-primary)] hover:bg-[var(--color-primary-hover)] text-white text-sm px-4 py-2 rounded-lg disabled:opacity-50"
+          className="ui-btn-primary w-full sm:w-auto"
         >
           Ajouter
         </button>

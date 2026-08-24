@@ -27,7 +27,9 @@ export default function ListeConversations({
     })
 
   if (avecMessages.length === 0) {
-    return <p className="text-gray-500 text-sm">Aucune conversation pour le moment.</p>
+    return (
+      <p className="text-[var(--color-ink-soft)] text-sm">Aucune conversation pour le moment.</p>
+    )
   }
 
   return (
@@ -43,17 +45,25 @@ export default function ListeConversations({
             : `/rdv/gestion/${r.token_gestion}`
 
         return (
-          <a key={r.id} href={href} className="block border rounded-lg p-4 hover:bg-gray-50">
-            <div className="flex justify-between items-center gap-2">
-              <p className="font-medium">{titre ?? 'Conversation'}</p>
-              <span className="text-xs text-gray-500 whitespace-nowrap">
+          <a
+            key={r.id}
+            href={href}
+            className="block ui-panel p-4 hover:border-[var(--color-primary)]/30 transition-colors"
+          >
+            <div className="flex justify-between items-start gap-3">
+              <p className="font-medium text-[var(--color-ink)] min-w-0 truncate">
+                {titre ?? 'Conversation'}
+              </p>
+              <span className="text-xs text-[var(--color-ink-soft)] whitespace-nowrap shrink-0">
                 {formatDistanceToNow(new Date(dernierMessage.created_at), {
                   addSuffix: true,
                   locale: fr,
                 })}
               </span>
             </div>
-            <p className="text-sm text-gray-600 truncate mt-1">{dernierMessage.contenu}</p>
+            <p className="text-sm text-[var(--color-ink-soft)] truncate mt-1.5">
+              {dernierMessage.contenu}
+            </p>
           </a>
         )
       })}

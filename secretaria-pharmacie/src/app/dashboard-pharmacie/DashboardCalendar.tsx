@@ -102,44 +102,44 @@ function CalendarToolbar({
   ]
 
   return (
-    <div className="rbc-toolbar-custom flex flex-wrap items-center justify-between gap-3 mb-3 px-1">
+    <div className="rbc-toolbar-custom flex flex-wrap items-center justify-between gap-2 sm:gap-3 mb-3 px-1">
       <button
         type="button"
         onClick={() => onNavigate('TODAY')}
-        className="text-sm border border-[var(--color-line)] rounded-lg px-3 py-1.5 text-[var(--color-ink-soft)] hover:bg-[var(--color-accent-soft)]"
+        className="ui-btn-ghost !py-1.5 text-sm"
       >
         Aujourd&apos;hui
       </button>
 
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-2 order-first sm:order-none w-full sm:w-auto justify-center">
         <button
           type="button"
           onClick={() => onNavigate('PREV')}
           aria-label="Période précédente"
-          className="w-8 h-8 flex items-center justify-center rounded-lg border border-[var(--color-line)] text-[var(--color-ink)] hover:bg-[var(--color-accent-soft)]"
+          className="w-9 h-9 flex items-center justify-center rounded-lg border border-[var(--color-line)] text-[var(--color-ink)] hover:bg-[var(--color-accent-soft)]"
         >
           ‹
         </button>
-        <span className="text-sm font-medium text-[var(--color-ink)] min-w-[9rem] text-center capitalize">
+        <span className="text-sm font-medium text-[var(--color-ink)] min-w-[8rem] sm:min-w-[9rem] text-center capitalize">
           {label}
         </span>
         <button
           type="button"
           onClick={() => onNavigate('NEXT')}
           aria-label="Période suivante"
-          className="w-8 h-8 flex items-center justify-center rounded-lg border border-[var(--color-line)] text-[var(--color-ink)] hover:bg-[var(--color-accent-soft)]"
+          className="w-9 h-9 flex items-center justify-center rounded-lg border border-[var(--color-line)] text-[var(--color-ink)] hover:bg-[var(--color-accent-soft)]"
         >
           ›
         </button>
       </div>
 
-      <div className="flex gap-1 border border-[var(--color-line)] rounded-lg p-0.5">
+      <div className="flex gap-1 border border-[var(--color-line)] rounded-lg p-0.5 bg-[var(--color-surface)]">
         {vues.map((v) => (
           <button
             key={v.key}
             type="button"
             onClick={() => onView(v.key)}
-            className={`text-xs px-3 py-1.5 rounded-md transition-colors ${
+            className={`text-xs px-2.5 sm:px-3 py-1.5 rounded-md transition-colors ${
               view === v.key
                 ? 'bg-[var(--color-primary)] text-white'
                 : 'text-[var(--color-ink-soft)] hover:text-[var(--color-ink)]'
@@ -243,7 +243,19 @@ export default function DashboardCalendar({
   const [ajoutLibreOuvert, setAjoutLibreOuvert] = useState(false)
 
   useEffect(() => {
-    setView(filtre === 'disponible' ? 'day' : 'week')
+    const isMobile = window.matchMedia('(max-width: 768px)').matches
+    if (filtre === 'disponible' || isMobile) setView('day')
+    else setView('week')
+  }, [filtre])
+
+  useEffect(() => {
+    const mq = window.matchMedia('(max-width: 768px)')
+    const onChange = () => {
+      if (mq.matches) setView('day')
+      else if (filtre !== 'disponible') setView('week')
+    }
+    mq.addEventListener('change', onChange)
+    return () => mq.removeEventListener('change', onChange)
   }, [filtre])
 
   const typesDisponibles = useMemo(() => {
@@ -351,14 +363,14 @@ export default function DashboardCalendar({
 
   return (
     <div>
-      <div className="flex justify-between items-center mb-3 flex-wrap gap-2">
-        <div className="flex gap-1 bg-[var(--color-bg)] border border-[var(--color-line)] rounded-lg p-1">
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-4 gap-3">
+        <div className="flex gap-1 bg-[var(--color-surface)] border border-[var(--color-line)] rounded-xl p-1 overflow-x-auto">
           {OPTIONS_FILTRE.map((o) => (
             <button
               key={o.key}
               type="button"
               onClick={() => setFiltre(o.key)}
-              className={`text-xs px-3 py-1.5 rounded-md transition-colors ${
+              className={`text-xs px-3 py-2 rounded-lg whitespace-nowrap transition-colors ${
                 filtre === o.key
                   ? 'bg-[var(--color-primary)] text-white'
                   : 'text-[var(--color-ink-soft)] hover:text-[var(--color-ink)]'
@@ -371,56 +383,58 @@ export default function DashboardCalendar({
         <button
           type="button"
           onClick={() => setAjoutLibreOuvert(true)}
-          className="bg-[var(--color-primary)] hover:bg-[var(--color-primary-hover)] text-white text-sm px-3 py-1.5 rounded-lg"
+          className="ui-btn-primary w-full sm:w-auto shrink-0"
         >
           + Ajouter un rendez-vous
         </button>
       </div>
 
-      <div style={{ height: 650 }}>
-        <Calendar
-          localizer={localizer}
-          events={events}
-          startAccessor="start"
-          endAccessor="end"
-          components={calendarComponents}
-          views={['week', 'day', 'agenda']}
-          view={view}
-          date={date}
-          onView={setView}
-          onNavigate={setDate}
-          step={15}
-          timeslots={2}
-          culture="fr"
-          messages={MESSAGES_FR}
-          onSelectEvent={(event: CalendarEvent) => {
-            if (event.resource.estDispo) {
-              const options = event.resource.options ?? [
-                { creneauId: event.id, typeNom: event.resource.typeNom },
-              ]
-              setCreationOuverte({
-                creneauId: options[0].creneauId,
-                typeNom: options[0].typeNom,
-                dateHeure: format(new Date(event.resource.debut), "EEEE d MMMM 'à' HH:mm", {
-                  locale: fr,
-                }),
-                options,
-              })
-            } else if (event.resource.reservation) {
-              setReservationOuverte({
-                id: event.resource.reservation.id,
-                clientNom: event.resource.reservation.client_nom,
-                clientTelephone: event.resource.reservation.client_telephone,
-                clientEmail: event.resource.reservation.client_email,
-                typeRdv: event.resource.typeNom,
-                typeRdvId: event.resource.typeId,
-                dateHeure: format(new Date(event.resource.debut), "EEEE d MMMM 'à' HH:mm", {
-                  locale: fr,
-                }),
-              })
-            }
-          }}
-        />
+      <div className="calendar-shell">
+        <div className="min-w-[320px] h-[min(70vh,650px)] sm:h-[650px]">
+          <Calendar
+            localizer={localizer}
+            events={events}
+            startAccessor="start"
+            endAccessor="end"
+            components={calendarComponents}
+            views={['week', 'day', 'agenda']}
+            view={view}
+            date={date}
+            onView={setView}
+            onNavigate={setDate}
+            step={15}
+            timeslots={2}
+            culture="fr"
+            messages={MESSAGES_FR}
+            onSelectEvent={(event: CalendarEvent) => {
+              if (event.resource.estDispo) {
+                const options = event.resource.options ?? [
+                  { creneauId: event.id, typeNom: event.resource.typeNom },
+                ]
+                setCreationOuverte({
+                  creneauId: options[0].creneauId,
+                  typeNom: options[0].typeNom,
+                  dateHeure: format(new Date(event.resource.debut), "EEEE d MMMM 'à' HH:mm", {
+                    locale: fr,
+                  }),
+                  options,
+                })
+              } else if (event.resource.reservation) {
+                setReservationOuverte({
+                  id: event.resource.reservation.id,
+                  clientNom: event.resource.reservation.client_nom,
+                  clientTelephone: event.resource.reservation.client_telephone,
+                  clientEmail: event.resource.reservation.client_email,
+                  typeRdv: event.resource.typeNom,
+                  typeRdvId: event.resource.typeId,
+                  dateHeure: format(new Date(event.resource.debut), "EEEE d MMMM 'à' HH:mm", {
+                    locale: fr,
+                  }),
+                })
+              }
+            }}
+          />
+        </div>
       </div>
 
       {reservationOuverte && (

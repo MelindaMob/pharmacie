@@ -1,7 +1,7 @@
 @import "tailwindcss";
 
 :root {
-  --color-bg: #F7F9F7;
+  --color-bg: #F3F6F4;
   --color-surface: #FFFFFF;
   --color-ink: #14231F;
   --color-ink-soft: #4B5E58;
@@ -9,9 +9,11 @@
   --color-primary-hover: #123A4E;
   --color-accent: #1F8A5F;
   --color-accent-soft: #E4F3EC;
-  --color-line: #DCE3DF;
+  --color-line: #D5DED9;
   --color-warning-bg: #FDF3E0;
   --color-warning-text: #92400E;
+  --shadow-soft: 0 1px 2px rgb(20 35 31 / 4%), 0 8px 24px rgb(20 35 31 / 5%);
+  --radius-panel: 1rem;
 
   --background: var(--color-bg);
   --foreground: var(--color-ink);
@@ -25,12 +27,93 @@
 }
 
 body {
-  background: var(--color-bg);
+  background:
+    radial-gradient(1200px 600px at 10% -10%, rgb(31 138 95 / 10%), transparent 55%),
+    radial-gradient(900px 500px at 100% 0%, rgb(27 75 102 / 9%), transparent 50%),
+    var(--color-bg);
+  background-attachment: fixed;
   color: var(--color-ink);
   font-family: var(--font-body), system-ui, sans-serif;
 }
 
-/* Bord perforé façon ticket, en bas d'un bloc */
+/* Surfaces réutilisables */
+.ui-panel {
+  background: var(--color-surface);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-panel);
+  box-shadow: var(--shadow-soft);
+}
+
+.ui-input {
+  width: 100%;
+  border: 1px solid var(--color-line);
+  border-radius: 0.75rem;
+  padding: 0.65rem 0.85rem;
+  font-size: 0.875rem;
+  background: var(--color-surface);
+  color: var(--color-ink);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.ui-input:focus {
+  outline: none;
+  border-color: color-mix(in srgb, var(--color-primary) 45%, var(--color-line));
+  box-shadow: 0 0 0 3px rgb(27 75 102 / 12%);
+}
+
+.ui-btn-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--color-primary);
+  color: white;
+  border-radius: 0.75rem;
+  padding: 0.65rem 1rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  transition: background-color 0.15s ease, transform 0.15s ease;
+}
+
+.ui-btn-primary:hover:not(:disabled) {
+  background: var(--color-primary-hover);
+}
+
+.ui-btn-primary:active:not(:disabled) {
+  transform: translateY(1px);
+}
+
+.ui-btn-primary:disabled {
+  opacity: 0.5;
+}
+
+.ui-btn-ghost {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--color-line);
+  border-radius: 0.75rem;
+  padding: 0.5rem 0.85rem;
+  font-size: 0.875rem;
+  color: var(--color-ink-soft);
+  background: color-mix(in srgb, var(--color-surface) 80%, transparent);
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.ui-btn-ghost:hover:not(:disabled) {
+  background: var(--color-accent-soft);
+  color: var(--color-ink);
+}
+
+.ui-label {
+  display: block;
+  font-size: 0.7rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-ink-soft);
+  margin-bottom: 0.4rem;
+}
+
+/* Bord perforé façon ticket */
 .ticket-perforation {
   position: relative;
 }
@@ -60,16 +143,35 @@ body {
       opacity: 0.35;
     }
   }
+  @keyframes fade-up {
+    from {
+      opacity: 0;
+      transform: translateY(10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
   .animate-pulse-cross {
     animation: pulse-cross 1.6s ease-in-out infinite;
   }
+  .animate-fade-up {
+    animation: fade-up 0.55s ease-out both;
+  }
+  .animate-fade-up-delay {
+    animation: fade-up 0.55s ease-out 0.12s both;
+  }
 }
 
-/* Surcharge du calendrier — rendu plus fin que le style par défaut */
+/* Calendrier */
 .rbc-calendar {
   font-family: var(--font-body);
   background: var(--color-surface);
-  border-radius: 12px;
+  border-radius: 16px;
+  border: 1px solid var(--color-line);
+  box-shadow: var(--shadow-soft);
+  overflow: hidden;
 }
 .rbc-toolbar {
   position: relative;
@@ -100,7 +202,7 @@ body {
 }
 .rbc-time-view,
 .rbc-agenda-view {
-  border-radius: 0 0 12px 12px;
+  border-radius: 0 0 16px 16px;
   overflow: hidden;
 }
 .rbc-header {
@@ -150,4 +252,27 @@ body {
 }
 .rbc-off-range-bg {
   background: #FAFBFA;
+}
+
+.calendar-shell {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+@media (max-width: 768px) {
+  .rbc-toolbar-custom {
+    justify-content: center !important;
+  }
+  .rbc-header {
+    padding: 8px 2px;
+    font-size: 11px;
+  }
+  .rbc-timeslot-group {
+    min-height: 52px;
+  }
+  .rbc-time-gutter,
+  .rbc-label {
+    font-size: 10px !important;
+  }
 }

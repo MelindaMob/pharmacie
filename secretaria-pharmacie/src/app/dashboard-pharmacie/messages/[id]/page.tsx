@@ -36,7 +36,7 @@ export default async function ConversationPharmaciePage({
   const nbNonLus = await compterNonLusPharmacie(role.id)
 
   return (
-    <div className="min-h-screen bg-[var(--color-bg)] p-6">
+    <div className="min-h-screen px-4 py-4 sm:p-6 lg:p-8">
       <div className="max-w-3xl mx-auto">
         <DashboardNav actif="messages" nbNonLus={nbNonLus} />
         <Link

@@ -42,11 +42,11 @@ export default async function ParametresPharmaciePage() {
   const nbNonLus = await compterNonLusPharmacie(role.id)
 
   return (
-    <div className="min-h-screen bg-[var(--color-bg)] p-6">
+    <div className="min-h-screen px-4 py-4 sm:p-6 lg:p-8">
       <div className="max-w-3xl mx-auto">
         <DashboardNav actif="parametres" nbNonLus={nbNonLus} />
 
-        <p className="text-sm text-[var(--color-ink-soft)] mb-4">
+        <p className="text-sm text-[var(--color-ink-soft)] mb-4 break-words">
           Adresse : {pharmacie?.adresse || 'Non renseignée par Secretar.IA pour le moment'}
         </p>
 

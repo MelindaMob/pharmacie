@@ -52,10 +52,10 @@ export default function InscriptionPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-[var(--color-bg)]">
-      <div className="ticket-perforation bg-[var(--color-surface)] p-8 rounded-t-xl border border-[var(--color-line)] w-full max-w-sm pb-10">
+    <div className="flex-1 flex items-center justify-center px-4 py-10 sm:py-16">
+      <div className="ticket-perforation ui-panel w-full max-w-sm p-6 sm:p-8 pb-10 rounded-t-2xl animate-fade-up">
         <div className="flex justify-center mb-6">
-          <Logo className="h-10 w-auto" href="/" />
+          <Logo className="h-9 sm:h-10 w-auto" href="/" />
         </div>
         <h1 className="font-[family-name:var(--font-display)] text-2xl text-center text-[var(--color-ink)] mb-6">
           Créer un compte
@@ -82,9 +82,7 @@ export default function InscriptionPage() {
             ] as const
           ).map((f) => (
             <div key={f.label}>
-              <label className="block text-xs uppercase tracking-wide text-[var(--color-ink-soft)] mb-1.5">
-                {f.label}
-              </label>
+              <label className="ui-label">{f.label}</label>
               <input
                 type={f.type}
                 value={f.value}
@@ -92,29 +90,25 @@ export default function InscriptionPage() {
                 required
                 placeholder={'placeholder' in f ? f.placeholder : undefined}
                 minLength={f.type === 'password' ? 6 : undefined}
-                className="w-full border border-[var(--color-line)] rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)] focus:border-transparent"
+                className="ui-input"
               />
             </div>
           ))}
-          <p className="text-xs text-[var(--color-ink-soft)]">
+          <p className="text-xs text-[var(--color-ink-soft)] leading-relaxed">
             Si vous avez déjà pris un RDV avec ce numéro, il sera automatiquement lié à votre
             compte.
           </p>
 
           {error && <p className="text-red-600 text-sm">{error}</p>}
 
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full bg-[var(--color-primary)] hover:bg-[var(--color-primary-hover)] text-white py-2.5 rounded-lg text-sm font-medium disabled:opacity-50 transition-colors"
-          >
+          <button type="submit" disabled={loading} className="ui-btn-primary w-full">
             {loading ? 'Création...' : 'Créer mon compte'}
           </button>
         </form>
 
-        <p className="text-sm text-center mt-4 text-[var(--color-ink-soft)]">
+        <p className="text-sm text-center mt-5 text-[var(--color-ink-soft)]">
           Déjà un compte ?{' '}
-          <a href="/connexion" className="text-[var(--color-primary)] underline">
+          <a href="/connexion" className="text-[var(--color-primary)] font-medium hover:underline">
             Se connecter
           </a>
         </p>

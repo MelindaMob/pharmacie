@@ -77,18 +77,18 @@ export default function ListeRdvClient({ reservations }: { reservations: Reserva
   return (
     <div className="space-y-8">
       <section>
-        <h2 className="text-sm font-medium text-[var(--color-ink-soft)] mb-2">À venir</h2>
+        <h2 className="text-sm font-medium text-[var(--color-ink-soft)] mb-3">À venir</h2>
         {groupesAVenir.length === 0 ? (
           <p className="text-sm text-[var(--color-ink-soft)]">Aucun rendez-vous à venir.</p>
         ) : (
-          <div className="divide-y divide-[var(--color-line)] border-t border-b border-[var(--color-line)]">
+          <div className="space-y-3">
             {groupesAVenir.map(({ pharmacie, rdvs }) => (
-              <div key={pharmacie?.id ?? rdvs[0].id} className="py-3">
+              <div key={pharmacie?.id ?? rdvs[0].id} className="ui-panel p-4">
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
                     <p className="font-medium text-[var(--color-ink)]">{pharmacie?.nom}</p>
                     {pharmacie?.adresse && (
-                      <p className="text-xs text-[var(--color-ink-soft)] truncate">
+                      <p className="text-xs text-[var(--color-ink-soft)] mt-0.5 break-words">
                         {pharmacie.adresse}
                       </p>
                     )}
@@ -96,18 +96,18 @@ export default function ListeRdvClient({ reservations }: { reservations: Reserva
                   {pharmacie?.id && (
                     <a
                       href={`/pharmacie/${pharmacie.id}`}
-                      className="text-xs text-[var(--color-primary)] hover:underline whitespace-nowrap"
+                      className="text-xs text-[var(--color-primary)] hover:underline whitespace-nowrap shrink-0"
                     >
                       Nouveau RDV
                     </a>
                   )}
                 </div>
-                <ul className="mt-2 space-y-1">
+                <ul className="mt-3 space-y-1 border-t border-[var(--color-line)] pt-2">
                   {rdvs.map((r) => (
                     <li key={r.id}>
                       <a
                         href={`/rdv/gestion/${r.token_gestion}`}
-                        className="flex items-center justify-between gap-2 text-sm py-1 hover:text-[var(--color-primary)]"
+                        className="flex items-center justify-between gap-2 text-sm py-2 rounded-lg px-1 -mx-1 hover:bg-[var(--color-bg)]"
                       >
                         <span className="font-[family-name:var(--font-mono)] text-[var(--color-ink)]">
                           {format(new Date(r.creneaux!.debut), "EEE d MMM 'à' HH:mm", {
@@ -126,18 +126,18 @@ export default function ListeRdvClient({ reservations }: { reservations: Reserva
       </section>
 
       <section>
-        <h2 className="text-sm font-medium text-[var(--color-ink-soft)] mb-2">Historique</h2>
+        <h2 className="text-sm font-medium text-[var(--color-ink-soft)] mb-3">Historique</h2>
         {historique.length === 0 ? (
           <p className="text-sm text-[var(--color-ink-soft)]">Aucun historique.</p>
         ) : (
-          <ul className="divide-y divide-[var(--color-line)] border-t border-b border-[var(--color-line)]">
+          <ul className="ui-panel divide-y divide-[var(--color-line)] overflow-hidden">
             {historique.map((r) => {
               const pharmacie = r.creneaux?.pharmacies
               return (
                 <li key={r.id}>
                   <a
                     href={`/rdv/gestion/${r.token_gestion}`}
-                    className="flex items-baseline justify-between gap-3 py-2.5 hover:bg-[var(--color-bg)]"
+                    className="flex items-baseline justify-between gap-3 px-4 py-3 hover:bg-[var(--color-bg)]"
                   >
                     <div className="min-w-0">
                       <p className="text-sm font-medium text-[var(--color-ink)] truncate">
