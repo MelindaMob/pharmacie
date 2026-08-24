@@ -12,6 +12,7 @@ export default function CreerPharmacieForm({ groupements }: { groupements: Group
   const [nom, setNom] = useState('')
   const [email, setEmail] = useState('')
   const [telephone, setTelephone] = useState('')
+  const [retellPhoneNumber, setRetellPhoneNumber] = useState('')
   const [groupementId, setGroupementId] = useState('')
   const [loading, setLoading] = useState(false)
   const [message, setMessage] = useState('')
@@ -31,7 +32,7 @@ export default function CreerPharmacieForm({ groupements }: { groupements: Group
     const res = await fetch('/api/admin/creer-pharmacie', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ nom, email, telephone, groupementId }),
+      body: JSON.stringify({ nom, email, telephone, groupementId, retellPhoneNumber }),
     })
     const data = await res.json()
 
@@ -46,6 +47,7 @@ export default function CreerPharmacieForm({ groupements }: { groupements: Group
     setNom('')
     setEmail('')
     setTelephone('')
+    setRetellPhoneNumber('')
     setGroupementId('')
     router.refresh()
   }
@@ -68,6 +70,13 @@ export default function CreerPharmacieForm({ groupements }: { groupements: Group
           value={telephone}
           onChange={(e) => setTelephone(e.target.value)}
           className={inputClass}
+        />
+        <input
+          type="tel"
+          placeholder="Numéro vocal Paul (Retell, optionnel)"
+          value={retellPhoneNumber}
+          onChange={(e) => setRetellPhoneNumber(e.target.value)}
+          className={`${inputClass} col-span-2`}
         />
         <input
           type="email"

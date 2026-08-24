@@ -13,7 +13,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Non autorisé' }, { status: 403 })
   }
 
-  const { nom, email, telephone, groupementId } = await request.json()
+  const { nom, email, telephone, groupementId, retellPhoneNumber } = await request.json()
 
   if (!nom || !email || !telephone) {
     return NextResponse.json({ error: 'Champs manquants' }, { status: 400 })
@@ -37,6 +37,7 @@ export async function POST(request: NextRequest) {
       nom,
       adresse: '',
       telephone,
+      retell_phone_number: retellPhoneNumber || null,
       groupement_id: groupementId || null,
       horaires_ouverture: {},
       delai_annulation_heures: 2,
