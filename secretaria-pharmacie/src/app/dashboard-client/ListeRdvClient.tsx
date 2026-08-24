@@ -68,7 +68,7 @@ export default function ListeRdvClient({ reservations }: { reservations: Reserva
       const key = p?.id ?? r.id
       const existant = groupes.get(key)
       if (existant) existant.rdvs.push(r)
-      else groupes.set(key, { pharmacie: p, rdvs: [r] })
+      else groupes.set(key, { pharmacie: p ?? null, rdvs: [r] })
     })
 
     return { groupesAVenir: Array.from(groupes.values()), historique }

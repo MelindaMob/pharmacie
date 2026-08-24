@@ -7,6 +7,7 @@ import Link from 'next/link'
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
 import { compterNonLusPharmacie } from '@/lib/messages/nonLus'
+import { unwrapEmbed } from '@/lib/supabase/unwrap'
 
 export const dynamic = 'force-dynamic'
 
@@ -29,7 +30,7 @@ export default async function ConversationPharmaciePage({
 
   if (!reservation) notFound()
 
-  const creneau = reservation.creneaux as { debut: string; pharmacie_id: string } | null
+  const creneau = unwrapEmbed<{ debut: string; pharmacie_id: string }>(reservation.creneaux)
   if (!creneau || creneau.pharmacie_id !== role.id) notFound()
 
   const nbNonLus = await compterNonLusPharmacie(role.id)

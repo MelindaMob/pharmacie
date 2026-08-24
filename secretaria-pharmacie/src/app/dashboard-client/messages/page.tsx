@@ -5,6 +5,7 @@ import { redirect } from 'next/navigation'
 import ListeConversations from '@/components/ListeConversations'
 import { NavDashboardClient } from '@/components/NavDashboard'
 import { compterNonLusClient } from '@/lib/messages/nonLus'
+import { unwrapEmbed } from '@/lib/supabase/unwrap'
 
 export const dynamic = 'force-dynamic'
 
@@ -56,10 +57,20 @@ export default async function MessagesClientPage() {
     }
   }
 
-  const reservationsAvecMessages = (reservations ?? []).map((r) => ({
-    ...r,
-    messages: messagesParReservation[r.id] ?? [],
-  }))
+  const reservationsAvecMessages = (reservations ?? []).map((r) => {
+    const creneau = unwrapEmbed<{ debut: string; pharmacies: unknown }>(r.creneaux)
+    return {
+      id: r.id,
+      token_gestion: r.token_gestion,
+      creneaux: creneau
+        ? {
+            debut: creneau.debut,
+            pharmacies: unwrapEmbed<{ nom: string }>(creneau.pharmacies),
+          }
+        : null,
+      messages: messagesParReservation[r.id] ?? [],
+    }
+  })
 
   const nbNonLus = await compterNonLusClient(clientIds)
 

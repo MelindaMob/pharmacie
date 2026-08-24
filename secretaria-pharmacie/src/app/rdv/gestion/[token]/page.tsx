@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { notFound } from 'next/navigation'
 import GestionRdvClient from './GestionRdvClient'
+import { unwrapEmbed } from '@/lib/supabase/unwrap'
 
 export default async function GestionRdvPage({
   params,
@@ -18,5 +19,26 @@ export default async function GestionRdvPage({
 
   if (!reservation) notFound()
 
-  return <GestionRdvClient reservation={reservation} token={token} />
+  const creneau = unwrapEmbed<{ debut: string; pharmacies: unknown }>(reservation.creneaux)
+
+  return (
+    <GestionRdvClient
+      reservation={{
+        id: reservation.id,
+        statut: reservation.statut,
+        client_nom: reservation.client_nom,
+        creneaux: creneau
+          ? {
+              debut: creneau.debut,
+              pharmacies: unwrapEmbed<{
+                nom: string
+                adresse: string
+                telephone: string
+              }>(creneau.pharmacies),
+            }
+          : null,
+      }}
+      token={token}
+    />
+  )
 }

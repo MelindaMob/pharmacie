@@ -2,9 +2,18 @@ import { createClient } from '@/lib/supabase/server'
 import { getUserRole } from '@/lib/auth/getRole'
 import { redirect } from 'next/navigation'
 import { lierReservationsAuCompte } from '@/lib/clients/lierReservations'
+import { unwrapEmbed } from '@/lib/supabase/unwrap'
 import ListeRdvClient from './ListeRdvClient'
 import { NavDashboardClient } from '@/components/NavDashboard'
 import { compterNonLusClient } from '@/lib/messages/nonLus'
+
+type PharmacieRdv = {
+  id: string
+  nom: string
+  adresse: string
+  telephone: string
+  groupement_id: string | null
+}
 
 export const dynamic = 'force-dynamic'
 
@@ -57,11 +66,27 @@ export default async function DashboardClientPage() {
     )
     .in('client_id', clientIds)
 
-  const reservationsTriees = [...(reservations ?? [])].sort((a, b) => {
-    const da = a.creneaux?.debut ? new Date(a.creneaux.debut).getTime() : 0
-    const db = b.creneaux?.debut ? new Date(b.creneaux.debut).getTime() : 0
-    return db - da
-  })
+  const reservationsTriees = [...(reservations ?? [])]
+    .map((r) => {
+      const creneau = unwrapEmbed<{ debut: string; pharmacies: unknown }>(r.creneaux)
+      return {
+        id: r.id,
+        statut: r.statut,
+        canal: r.canal,
+        token_gestion: r.token_gestion,
+        creneaux: creneau
+          ? {
+              debut: creneau.debut,
+              pharmacies: unwrapEmbed<PharmacieRdv>(creneau.pharmacies),
+            }
+          : null,
+      }
+    })
+    .sort((a, b) => {
+      const da = a.creneaux?.debut ? new Date(a.creneaux.debut).getTime() : 0
+      const db = b.creneaux?.debut ? new Date(b.creneaux.debut).getTime() : 0
+      return db - da
+    })
 
   const nbNonLus = await compterNonLusClient(clientIds)
 

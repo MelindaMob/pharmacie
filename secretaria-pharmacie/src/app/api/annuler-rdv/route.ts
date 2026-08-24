@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js'
 import { NextRequest, NextResponse } from 'next/server'
 import { envoyerSms, normaliserNumeroFrancais } from '@/lib/sms/envoyerSms'
+import { unwrapEmbed } from '@/lib/supabase/unwrap'
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -30,17 +31,19 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Déjà annulé' }, { status: 400 })
   }
 
-  const creneau = reservation.creneaux as {
-    debut: string
-    pharmacies: {
-      nom: string
-      telephone: string
-      delai_annulation_heures: number | null
-    } | null
-  } | null
-  const pharmacie = creneau?.pharmacies
+  const creneauRow = unwrapEmbed<{ debut: string; pharmacies: unknown }>(reservation.creneaux)
 
-  const debutRdv = new Date(creneau!.debut)
+  if (!creneauRow?.debut) {
+    return NextResponse.json({ error: 'Créneau introuvable' }, { status: 404 })
+  }
+
+  const pharmacie = unwrapEmbed<{
+    nom: string
+    telephone: string
+    delai_annulation_heures: number | null
+  }>(creneauRow.pharmacies)
+
+  const debutRdv = new Date(creneauRow.debut)
   const maintenant = new Date()
   const heuresAvant = (debutRdv.getTime() - maintenant.getTime()) / (1000 * 60 * 60)
   const delaiMinimum = pharmacie?.delai_annulation_heures ?? 2

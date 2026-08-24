@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js'
 import { NextRequest, NextResponse } from 'next/server'
 import { envoyerSms, normaliserNumeroFrancais } from '@/lib/sms/envoyerSms'
+import { unwrapEmbed } from '@/lib/supabase/unwrap'
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
 
@@ -78,7 +79,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Ce créneau vient d'être pris" }, { status: 409 })
   }
 
-  const pharmacie = creneau.pharmacies as { nom: string; adresse: string } | null
+  const pharmacie = unwrapEmbed<{ nom: string; adresse: string }>(creneau.pharmacies)
   const dateFormatee = format(new Date(creneau.debut), "EEEE d MMMM 'à' HH:mm", {
     locale: fr,
   })

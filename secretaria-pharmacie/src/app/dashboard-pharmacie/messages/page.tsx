@@ -4,6 +4,7 @@ import { redirect } from 'next/navigation'
 import ListeConversations from '@/components/ListeConversations'
 import DashboardNav from '../DashboardNav'
 import { compterNonLusPharmacie } from '@/lib/messages/nonLus'
+import { unwrapEmbed } from '@/lib/supabase/unwrap'
 
 export const dynamic = 'force-dynamic'
 
@@ -28,7 +29,7 @@ export default async function MessagesPharmaciePage() {
     id: r.id,
     client_nom: r.client_nom,
     token_gestion: r.token_gestion,
-    creneaux: r.creneaux as { debut: string } | null,
+    creneaux: unwrapEmbed<{ debut: string }>(r.creneaux),
     messages: r.messages ?? [],
   }))
 
