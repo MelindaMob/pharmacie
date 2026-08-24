@@ -11,7 +11,14 @@ type Message = {
   created_at: string
 }
 
-export default function MessagerieInvite({ token }: { token: string }) {
+export default function MessagerieInvite({
+  token,
+  embedded = false,
+}: {
+  token: string
+  /** Sans cadre ni titre — pour usage dans une modale */
+  embedded?: boolean
+}) {
   const [messages, setMessages] = useState<Message[]>([])
   const [nouveauMessage, setNouveauMessage] = useState('')
   const [loading, setLoading] = useState(false)
@@ -30,9 +37,14 @@ export default function MessagerieInvite({ token }: { token: string }) {
 
   useEffect(() => {
     chargerMessages()
+    fetch('/api/messages/marquer-lus', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token }),
+    })
     const interval = setInterval(chargerMessages, 5000)
     return () => clearInterval(interval)
-  }, [chargerMessages])
+  }, [chargerMessages, token])
 
   const envoyer = async () => {
     if (!nouveauMessage.trim() || loading) return
@@ -53,8 +65,8 @@ export default function MessagerieInvite({ token }: { token: string }) {
   }
 
   return (
-    <div className="border rounded-lg p-4">
-      <h3 className="font-semibold text-sm mb-3">Messages avec la pharmacie</h3>
+    <div className={embedded ? '' : 'border rounded-lg p-4'}>
+      {!embedded && <h3 className="font-semibold text-sm mb-3">Messages avec la pharmacie</h3>}
 
       <div className="space-y-2 max-h-64 overflow-y-auto mb-3">
         {messages.length === 0 && (

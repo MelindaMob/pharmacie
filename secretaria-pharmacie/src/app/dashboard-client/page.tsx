@@ -3,7 +3,8 @@ import { getUserRole } from '@/lib/auth/getRole'
 import { redirect } from 'next/navigation'
 import { lierReservationsAuCompte } from '@/lib/clients/lierReservations'
 import ListeRdvClient from './ListeRdvClient'
-import BoutonDeconnexion from '@/components/BoutonDeconnexion'
+import { NavDashboardClient } from '@/components/NavDashboard'
+import { compterNonLusClient } from '@/lib/messages/nonLus'
 
 export const dynamic = 'force-dynamic'
 
@@ -52,7 +53,7 @@ export default async function DashboardClientPage() {
   const { data: reservations } = await supabase
     .from('reservations')
     .select(
-      'id, statut, canal, token_gestion, creneaux(debut, pharmacies(nom, adresse, telephone))'
+      'id, statut, canal, token_gestion, creneaux(debut, pharmacies(id, nom, adresse, telephone, groupement_id))'
     )
     .in('client_id', clientIds)
 
@@ -62,13 +63,14 @@ export default async function DashboardClientPage() {
     return db - da
   })
 
+  const nbNonLus = await compterNonLusClient(clientIds)
+
   return (
-    <div className="max-w-2xl mx-auto p-6">
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold">Vos rendez-vous</h1>
-        <BoutonDeconnexion />
+    <div className="min-h-screen bg-[var(--color-bg)]">
+      <div className="max-w-2xl mx-auto p-6">
+        <NavDashboardClient actif="rdv" nbNonLus={nbNonLus} />
+        <ListeRdvClient reservations={reservationsTriees} />
       </div>
-      <ListeRdvClient reservations={reservationsTriees} />
     </div>
   )
 }

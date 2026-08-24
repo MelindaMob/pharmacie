@@ -1,26 +1,153 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --color-bg: #F7F9F7;
+  --color-surface: #FFFFFF;
+  --color-ink: #14231F;
+  --color-ink-soft: #4B5E58;
+  --color-primary: #1B4B66;
+  --color-primary-hover: #123A4E;
+  --color-accent: #1F8A5F;
+  --color-accent-soft: #E4F3EC;
+  --color-line: #DCE3DF;
+  --color-warning-bg: #FDF3E0;
+  --color-warning-text: #92400E;
+
+  --background: var(--color-bg);
+  --foreground: var(--color-ink);
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  --font-sans: var(--font-body);
+  --font-display: var(--font-display);
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--color-bg);
+  color: var(--color-ink);
+  font-family: var(--font-body), system-ui, sans-serif;
+}
+
+/* Bord perforé façon ticket, en bas d'un bloc */
+.ticket-perforation {
+  position: relative;
+}
+.ticket-perforation::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -1px;
+  height: 12px;
+  background-image: radial-gradient(
+    circle at 6px 6px,
+    var(--color-bg) 6px,
+    transparent 6.5px
+  );
+  background-size: 16px 12px;
+  background-repeat: repeat-x;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  @keyframes pulse-cross {
+    0%,
+    100% {
+      opacity: 1;
+    }
+    50% {
+      opacity: 0.35;
+    }
+  }
+  .animate-pulse-cross {
+    animation: pulse-cross 1.6s ease-in-out infinite;
+  }
+}
+
+/* Surcharge du calendrier — rendu plus fin que le style par défaut */
+.rbc-calendar {
+  font-family: var(--font-body);
+  background: var(--color-surface);
+  border-radius: 12px;
+}
+.rbc-toolbar {
+  position: relative;
+  z-index: 3;
+  padding: 8px 12px;
+  margin-bottom: 4px;
+}
+.rbc-toolbar button {
+  font-family: var(--font-body);
+  border: 1px solid var(--color-line);
+  color: var(--color-ink-soft);
+  border-radius: 8px;
+  cursor: pointer;
+  pointer-events: auto;
+  background: var(--color-surface);
+  box-shadow: none;
+  background-image: none;
+}
+.rbc-toolbar button.rbc-active {
+  background: var(--color-primary) !important;
+  color: white !important;
+  border-color: var(--color-primary);
+  box-shadow: none;
+  background-image: none;
+}
+.rbc-toolbar button:hover:not(.rbc-active) {
+  background: var(--color-accent-soft);
+}
+.rbc-time-view,
+.rbc-agenda-view {
+  border-radius: 0 0 12px 12px;
+  overflow: hidden;
+}
+.rbc-header {
+  padding: 12px 8px;
+  font-weight: 500;
+  font-size: 13px;
+  color: var(--color-ink-soft);
+  border-bottom: 1px solid var(--color-line) !important;
+  text-transform: capitalize;
+}
+.rbc-time-header-content,
+.rbc-time-content {
+  border-color: var(--color-line) !important;
+}
+.rbc-timeslot-group {
+  border-color: var(--color-line) !important;
+  min-height: 64px;
+}
+.rbc-time-slot {
+  color: var(--color-ink-soft);
+  font-size: 11px;
+  font-family: var(--font-mono);
+}
+.rbc-day-slot .rbc-time-slot {
+  border-color: #F0F2F0 !important;
+}
+.rbc-today {
+  background-color: var(--color-accent-soft) !important;
+}
+.rbc-current-time-indicator {
+  background-color: var(--color-accent);
+  height: 2px;
+}
+.rbc-event {
+  border: none !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+  overflow: hidden;
+  margin: 1px 4px !important;
+  min-height: 20px;
+}
+.rbc-events-container {
+  margin-right: 0 !important;
+}
+.rbc-event-label {
+  display: none;
+}
+.rbc-off-range-bg {
+  background: #FAFBFA;
 }

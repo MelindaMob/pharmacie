@@ -1,74 +1,111 @@
 'use client'
 
-import { useRouter } from 'next/navigation'
 import { useState } from 'react'
-import AdresseAutocomplete from '@/components/AdresseAutocomplete'
+import { createClient } from '@/lib/supabase/client'
+import Logo from '@/components/Logo'
+import PharmacyCross from '@/components/PharmacyCross'
 
 export default function LandingPage() {
-  const router = useRouter()
+  const [nomPharmacie, setNomPharmacie] = useState('')
+  const [email, setEmail] = useState('')
+  const [telephone, setTelephone] = useState('')
+  const [message, setMessage] = useState('')
+  const [envoye, setEnvoye] = useState(false)
   const [loading, setLoading] = useState(false)
   const [erreur, setErreur] = useState('')
-  const [selection, setSelection] = useState<{ lat: number; lng: number } | null>(null)
 
-  const rechercherParAdresse = () => {
-    if (!selection) {
-      setErreur('Choisissez une adresse dans la liste de suggestions')
+  const envoyer = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!nomPharmacie || !email) {
+      setErreur("Merci de renseigner au moins le nom et l'email")
       return
     }
-    router.push(`/recherche?lat=${selection.lat}&lng=${selection.lng}`)
-  }
-
-  const rechercherAvecGeoloc = () => {
-    if (!navigator.geolocation) {
-      setErreur('Géolocalisation non supportée par votre navigateur')
-      return
-    }
-
     setLoading(true)
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
-        router.push(
-          `/recherche?lat=${position.coords.latitude}&lng=${position.coords.longitude}`
-        )
-      },
-      () => {
-        setLoading(false)
-        setErreur('Impossible de récupérer votre position')
-      }
-    )
+    setErreur('')
+    const supabase = createClient()
+    const { error } = await supabase.from('demandes_contact').insert({
+      nom_pharmacie: nomPharmacie,
+      email,
+      telephone,
+      message,
+    })
+    setLoading(false)
+    if (error) {
+      setErreur("Erreur lors de l'envoi, réessayez.")
+      return
+    }
+    setEnvoye(true)
   }
+
+  const inputClass =
+    'w-full border border-[var(--color-line)] rounded-lg px-3 py-2.5 text-sm bg-[var(--color-surface)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)] focus:border-transparent'
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center px-6 bg-gradient-to-b from-white to-gray-50">
+    <div className="min-h-screen flex flex-col items-center justify-center px-6 bg-[var(--color-bg)]">
       <div className="max-w-xl w-full text-center">
-        <h1 className="text-4xl font-bold mb-3">
-          Prenez rendez-vous en pharmacie, en quelques secondes
-        </h1>
-        <p className="text-gray-600 mb-8">
-          Trouvez une pharmacie disponible près de chez vous et réservez votre créneau en ligne.
+        <div className="flex justify-center mb-6">
+          <Logo className="h-14 w-auto" href={null} priority />
+        </div>
+        <p className="text-[var(--color-ink-soft)] mb-10">
+          La solution de prise de rendez-vous pensée pour les pharmacies : agenda en ligne,
+          gestion des créneaux, et mise en relation avec votre groupement en cas
+          d&apos;indisponibilité.
         </p>
 
-        <div className="flex gap-3 items-start">
-          <div className="flex-1 text-left">
-            <AdresseAutocomplete onSelect={setSelection} />
+        {envoye ? (
+          <div className="ticket-perforation bg-[var(--color-accent-soft)] border border-[var(--color-accent)]/30 rounded-t-xl p-6 pb-8">
+            <PharmacyCross className="w-6 h-6 text-[var(--color-accent)] mx-auto mb-2" />
+            <p className="text-[var(--color-ink)] font-medium">Merci pour votre demande !</p>
+            <p className="text-sm text-[var(--color-ink-soft)] mt-1">
+              Nous revenons vers vous très rapidement.
+            </p>
           </div>
-          <button
-            onClick={rechercherParAdresse}
-            disabled={loading}
-            className="bg-black text-white px-4 py-2 rounded disabled:opacity-50 whitespace-nowrap"
+        ) : (
+          <form
+            onSubmit={envoyer}
+            className="bg-[var(--color-surface)] border border-[var(--color-line)] rounded-xl p-6 text-left space-y-3"
           >
-            Rechercher
-          </button>
-          <button
-            onClick={rechercherAvecGeoloc}
-            disabled={loading}
-            className="border border-black text-black px-4 py-2 rounded disabled:opacity-50 whitespace-nowrap"
-          >
-            {loading ? '...' : '📍 Ma position'}
-          </button>
-        </div>
-
-        {erreur && <p className="text-red-600 text-sm mt-3">{erreur}</p>}
+            <h2 className="font-[family-name:var(--font-display)] text-center text-lg text-[var(--color-ink)] mb-3">
+              Vous êtes une pharmacie ?
+            </h2>
+            <input
+              type="text"
+              placeholder="Nom de la pharmacie"
+              value={nomPharmacie}
+              onChange={(e) => setNomPharmacie(e.target.value)}
+              className={inputClass}
+            />
+            <input
+              type="email"
+              placeholder="Email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className={inputClass}
+            />
+            <input
+              type="tel"
+              placeholder="Téléphone (optionnel)"
+              value={telephone}
+              onChange={(e) => setTelephone(e.target.value)}
+              className={inputClass}
+            />
+            <textarea
+              placeholder="Votre message (optionnel)"
+              value={message}
+              onChange={(e) => setMessage(e.target.value)}
+              rows={3}
+              className={inputClass}
+            />
+            {erreur && <p className="text-red-600 text-sm">{erreur}</p>}
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full bg-[var(--color-primary)] hover:bg-[var(--color-primary-hover)] text-white py-2.5 rounded-lg text-sm font-medium disabled:opacity-50 transition-colors"
+            >
+              {loading ? 'Envoi...' : 'Demander une démo'}
+            </button>
+          </form>
+        )}
       </div>
     </div>
   )

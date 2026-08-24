@@ -1,7 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { createClient } from '@/lib/supabase/client'
+import { useState, useEffect, useCallback } from 'react'
 import { formatDistanceToNow } from 'date-fns'
 import { fr } from 'date-fns/locale'
 
@@ -16,62 +15,79 @@ type Message = {
 export default function Messagerie({
   reservationId,
   role,
+  embedded = false,
 }: {
   reservationId: string
   role: 'pharmacie' | 'client'
+  embedded?: boolean
 }) {
   const [messages, setMessages] = useState<Message[]>([])
   const [nouveauMessage, setNouveauMessage] = useState('')
   const [loading, setLoading] = useState(false)
   const [chargementInitial, setChargementInitial] = useState(true)
 
-  const chargerMessages = async () => {
-    const supabase = createClient()
-    const { data } = await supabase
-      .from('messages')
-      .select('id, expediteur, contenu, created_at, lu')
-      .eq('reservation_id', reservationId)
-      .order('created_at', { ascending: true })
+  const chargerMessages = useCallback(async () => {
+    // Côté pharmacie : API service role (RLS messages souvent fermée)
+    if (role === 'pharmacie') {
+      const res = await fetch('/api/messages/pharmacie/lister', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reservationId }),
+      })
+      const data = await res.json()
+      setMessages(data.messages ?? [])
+    } else {
+      const { createClient } = await import('@/lib/supabase/client')
+      const supabase = createClient()
+      const { data } = await supabase
+        .from('messages')
+        .select('id, expediteur, contenu, created_at, lu')
+        .eq('reservation_id', reservationId)
+        .order('created_at', { ascending: true })
+      setMessages(data ?? [])
+    }
 
-    setMessages(data ?? [])
     setChargementInitial(false)
-  }
+
+    await fetch('/api/messages/marquer-lus', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ reservationId }),
+    })
+  }, [reservationId, role])
 
   useEffect(() => {
     chargerMessages()
-
-    const supabase = createClient()
-    const channel = supabase
-      .channel(`messages-${reservationId}`)
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'messages',
-          filter: `reservation_id=eq.${reservationId}`,
-        },
-        () => chargerMessages()
-      )
-      .subscribe()
-
-    return () => {
-      supabase.removeChannel(channel)
-    }
-  }, [reservationId])
+    const interval = setInterval(chargerMessages, 5000)
+    return () => clearInterval(interval)
+  }, [chargerMessages])
 
   const envoyer = async () => {
     if (!nouveauMessage.trim() || loading) return
 
     setLoading(true)
-    const supabase = createClient()
-    await supabase.from('messages').insert({
-      reservation_id: reservationId,
-      expediteur: role,
-      contenu: nouveauMessage.trim(),
-    })
+    const contenu = nouveauMessage.trim()
+
+    if (role === 'pharmacie') {
+      await fetch('/api/messages/pharmacie/envoyer', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reservationId, contenu }),
+      })
+    } else {
+      const { createClient } = await import('@/lib/supabase/client')
+      const supabase = createClient()
+      await supabase.from('messages').insert({
+        reservation_id: reservationId,
+        expediteur: role,
+        contenu,
+        lu: false,
+      })
+    }
+
     setNouveauMessage('')
     setLoading(false)
+    await chargerMessages()
   }
 
   if (chargementInitial) {
@@ -79,8 +95,8 @@ export default function Messagerie({
   }
 
   return (
-    <div className="border rounded-lg p-4">
-      <h3 className="font-semibold text-sm mb-3">Messages</h3>
+    <div className={embedded ? '' : 'border rounded-lg p-4'}>
+      {!embedded && <h3 className="font-semibold text-sm mb-3">Messages</h3>}
 
       <div className="space-y-2 max-h-64 overflow-y-auto mb-3">
         {messages.length === 0 && (

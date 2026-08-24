@@ -27,6 +27,7 @@ export async function POST(request: NextRequest) {
     reservation_id: reservation.id,
     expediteur: 'client',
     contenu: contenu.trim(),
+    lu: false,
   })
 
   if (error) {

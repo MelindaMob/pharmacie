@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { notFound } from 'next/navigation'
 import CreneauxDisponibles from './CreneauxDisponibles'
+import PharmacyTicketCard from './PharmacyTicketCard'
 
 export default async function FichePharmaciePage({
   params,
@@ -12,7 +13,7 @@ export default async function FichePharmaciePage({
 
   const { data: pharmacie } = await supabase
     .from('pharmacies')
-    .select('id, nom, adresse, telephone')
+    .select('id, nom, adresse, telephone, horaires_ouverture')
     .eq('id', id)
     .single()
 
@@ -30,19 +31,28 @@ export default async function FichePharmaciePage({
     .eq('statut', 'disponible')
     .gt('debut', new Date().toISOString())
     .order('debut', { ascending: true })
-    .limit(200)
+    .limit(500)
 
   return (
-    <div className="max-w-3xl mx-auto p-6">
-      <h1 className="text-2xl font-bold">{pharmacie.nom}</h1>
-      <p className="text-gray-600 mb-1">{pharmacie.adresse}</p>
-      <p className="text-gray-600 mb-6">{pharmacie.telephone}</p>
+    <div className="min-h-screen bg-[var(--color-bg)] py-10 px-4">
+      <div className="max-w-4xl mx-auto grid md:grid-cols-[320px_1fr] gap-6 items-start">
+        <div className="md:sticky md:top-6">
+          <PharmacyTicketCard
+            nom={pharmacie.nom}
+            adresse={pharmacie.adresse}
+            telephone={pharmacie.telephone}
+            horaires={pharmacie.horaires_ouverture}
+          />
+        </div>
 
-      <CreneauxDisponibles
-        pharmacieId={pharmacie.id}
-        typesRdv={typesRdv ?? []}
-        creneaux={creneaux ?? []}
-      />
+        <div className="bg-[var(--color-surface)] border border-[var(--color-line)] rounded-xl p-6">
+          <CreneauxDisponibles
+            pharmacieId={pharmacie.id}
+            typesRdv={typesRdv ?? []}
+            creneaux={creneaux ?? []}
+          />
+        </div>
+      </div>
     </div>
   )
 }

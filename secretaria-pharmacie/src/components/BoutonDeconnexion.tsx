@@ -21,7 +21,7 @@ export default function BoutonDeconnexion() {
       type="button"
       onClick={deconnecter}
       disabled={loading}
-      className="text-sm border rounded px-3 py-1.5 hover:bg-gray-50 disabled:opacity-50"
+      className="text-sm border border-[var(--color-line)] rounded-lg px-3 py-1.5 text-[var(--color-ink-soft)] hover:bg-[var(--color-surface)] hover:text-[var(--color-ink)] disabled:opacity-50"
     >
       {loading ? 'Déconnexion...' : 'Se déconnecter'}
     </button>

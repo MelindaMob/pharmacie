@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
+import Logo from '@/components/Logo'
 
 /**
  * Pourquoi une session admin pouvait "gagner" malgré le lien email :
@@ -144,6 +145,9 @@ export default function DefinirMotDePassePage() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50">
       <div className="bg-white p-8 rounded-lg shadow-sm border w-full max-w-sm">
+        <div className="flex justify-center mb-6">
+          <Logo className="h-10 w-auto" href="/" />
+        </div>
         <h1 className="text-2xl font-bold mb-2 text-center">Bienvenue</h1>
         <p className="text-sm text-gray-600 text-center mb-6">
           Choisissez votre mot de passe pour accéder à votre espace pharmacie.

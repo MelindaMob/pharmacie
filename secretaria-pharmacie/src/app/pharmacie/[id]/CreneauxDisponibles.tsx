@@ -4,6 +4,7 @@ import { useState, useMemo, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { format, isSameDay, addDays } from 'date-fns'
 import { fr } from 'date-fns/locale'
+import PharmacyCross from '@/components/PharmacyCross'
 
 type TypeRdv = { id: string; nom: string; duree_minutes: number }
 type Creneau = { id: string; debut: string; fin: string; type_rdv_id: string; statut: string }
@@ -75,7 +76,7 @@ function choisirCreneauxProches(
   return tries.slice(0, 4).map((c) => c.debut)
 }
 
-const NB_JOURS_RECHERCHE_ETENDUE = 3 // si rien le jour demandé, on regarde jusqu'à 3 jours après avant de proposer le fallback
+const NB_JOURS_RECHERCHE_ETENDUE = 3
 
 export default function CreneauxDisponibles({
   pharmacieId,
@@ -92,8 +93,10 @@ export default function CreneauxDisponibles({
   const [rechercheEffectuee, setRechercheEffectuee] = useState(false)
 
   const [creneauSelectionne, setCreneauSelectionne] = useState<Creneau | null>(null)
+  const [prenom, setPrenom] = useState('')
   const [nom, setNom] = useState('')
   const [telephone, setTelephone] = useState('')
+  const [email, setEmail] = useState('')
   const [confirmation, setConfirmation] = useState('')
   const [loading, setLoading] = useState(false)
   const [erreur, setErreur] = useState('')
@@ -105,7 +108,6 @@ export default function CreneauxDisponibles({
     [creneaux, typeSelectionne]
   )
 
-  // Résultat de la recherche : soit des créneaux le jour demandé, soit dans les jours suivants, soit rien
   const resultatRecherche = useMemo(() => {
     if (!rechercheEffectuee) return null
 
@@ -114,11 +116,9 @@ export default function CreneauxDisponibles({
       ? parseInt(heureSouhaitee.split(':')[0]) * 60 + parseInt(heureSouhaitee.split(':')[1])
       : null
 
-    // 1. Chercher les créneaux exactement le jour demandé
     const creneauxDuJour = creneauxDuType.filter((c) => isSameDay(new Date(c.debut), dateVoulue))
 
     if (creneauxDuJour.length > 0) {
-      // Trier par proximité avec l'heure demandée (si donnée), sinon par heure croissante
       const tries = [...creneauxDuJour].sort((a, b) => {
         if (minutesVoulues === null) {
           return new Date(a.debut).getTime() - new Date(b.debut).getTime()
@@ -130,7 +130,6 @@ export default function CreneauxDisponibles({
       return { type: 'meme_jour' as const, creneaux: tries.slice(0, 6) }
     }
 
-    // 2. Rien ce jour-là : chercher dans les jours suivants (jusqu'à NB_JOURS_RECHERCHE_ETENDUE)
     for (let i = 1; i <= NB_JOURS_RECHERCHE_ETENDUE; i++) {
       const jourSuivant = addDays(dateVoulue, i)
       const creneauxJourSuivant = creneauxDuType
@@ -142,11 +141,9 @@ export default function CreneauxDisponibles({
       }
     }
 
-    // 3. Rien trouvé dans la fenêtre → déclenche le fallback groupement
     return { type: 'rien' as const, creneaux: [] }
   }, [rechercheEffectuee, dateSouhaitee, heureSouhaitee, creneauxDuType])
 
-  // Déclenche la recherche d'alternatives groupement si rien trouvé
   useEffect(() => {
     setAlternatives([])
     if (resultatRecherche?.type !== 'rien') return
@@ -226,8 +223,8 @@ export default function CreneauxDisponibles({
   }
 
   const reserver = async () => {
-    if (!creneauSelectionne || !nom || !telephone) {
-      setErreur('Merci de remplir votre nom et téléphone')
+    if (!creneauSelectionne || !prenom.trim() || !nom.trim() || !telephone) {
+      setErreur('Merci de renseigner votre prénom, nom et téléphone')
       return
     }
 
@@ -237,7 +234,13 @@ export default function CreneauxDisponibles({
     const res = await fetch('/api/reserver', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ creneauId: creneauSelectionne.id, nom, telephone }),
+      body: JSON.stringify({
+        creneauId: creneauSelectionne.id,
+        prenom: prenom.trim(),
+        nom: nom.trim(),
+        telephone,
+        email,
+      }),
     })
 
     const data = await res.json()
@@ -253,11 +256,15 @@ export default function CreneauxDisponibles({
     )
   }
 
+  const inputClass =
+    'w-full border border-[var(--color-line)] rounded-lg px-3 py-2.5 text-sm bg-[var(--color-surface)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)] focus:border-transparent'
+
   if (confirmation) {
     return (
-      <div className="bg-green-50 border border-green-200 rounded-lg p-6 text-center">
-        <p className="text-green-800 font-semibold">{confirmation}</p>
-        <p className="text-sm text-green-700 mt-2">
+      <div className="ticket-perforation bg-[var(--color-accent-soft)] border border-[var(--color-accent)]/30 rounded-t-xl p-6 pb-8 text-center">
+        <PharmacyCross className="w-6 h-6 text-[var(--color-accent)] mx-auto mb-3" />
+        <p className="font-medium text-[var(--color-ink)]">{confirmation}</p>
+        <p className="text-sm text-[var(--color-ink-soft)] mt-2">
           Vous recevrez un SMS de rappel avant votre rendez-vous.
         </p>
       </div>
@@ -266,9 +273,14 @@ export default function CreneauxDisponibles({
 
   return (
     <div>
-      {/* Étape 1 : type de RDV */}
+      <h2 className="font-[family-name:var(--font-display)] text-xl text-[var(--color-ink)] mb-5">
+        Prendre rendez-vous
+      </h2>
+
       <div className="mb-4">
-        <label className="block text-sm font-medium mb-1">Type de rendez-vous</label>
+        <label className="block text-xs uppercase tracking-wide text-[var(--color-ink-soft)] mb-1.5">
+          Motif du rendez-vous
+        </label>
         <select
           value={typeSelectionne}
           onChange={(e) => {
@@ -276,7 +288,7 @@ export default function CreneauxDisponibles({
             setRechercheEffectuee(false)
             setCreneauSelectionne(null)
           }}
-          className="border rounded px-3 py-2 w-full"
+          className={inputClass}
         >
           {typesRdv.map((t) => (
             <option key={t.id} value={t.id}>
@@ -286,10 +298,11 @@ export default function CreneauxDisponibles({
         </select>
       </div>
 
-      {/* Étape 2 : date + heure souhaitées */}
-      <div className="mb-4 flex gap-3">
-        <div className="flex-1">
-          <label className="block text-sm font-medium mb-1">Date souhaitée</label>
+      <div className="mb-4 grid grid-cols-2 gap-3">
+        <div>
+          <label className="block text-xs uppercase tracking-wide text-[var(--color-ink-soft)] mb-1.5">
+            Date souhaitée
+          </label>
           <input
             type="date"
             value={dateSouhaitee}
@@ -299,11 +312,13 @@ export default function CreneauxDisponibles({
               setRechercheEffectuee(false)
               setCreneauSelectionne(null)
             }}
-            className="border rounded px-3 py-2 w-full"
+            className={`${inputClass} font-[family-name:var(--font-mono)]`}
           />
         </div>
-        <div className="flex-1">
-          <label className="block text-sm font-medium mb-1">Heure souhaitée (optionnel)</label>
+        <div>
+          <label className="block text-xs uppercase tracking-wide text-[var(--color-ink-soft)] mb-1.5">
+            Heure (optionnel)
+          </label>
           <input
             type="time"
             value={heureSouhaitee}
@@ -312,33 +327,42 @@ export default function CreneauxDisponibles({
               setRechercheEffectuee(false)
               setCreneauSelectionne(null)
             }}
-            className="border rounded px-3 py-2 w-full"
+            className={`${inputClass} font-[family-name:var(--font-mono)]`}
           />
         </div>
       </div>
 
       <button
+        type="button"
         onClick={lancerRecherche}
-        className="w-full bg-black text-white py-2 rounded mb-6"
+        className="w-full bg-[var(--color-primary)] hover:bg-[var(--color-primary-hover)] text-white py-2.5 rounded-lg text-sm font-medium transition-colors mb-6"
       >
         Rechercher un créneau
       </button>
 
-      {/* Résultats */}
-      {resultatRecherche && resultatRecherche.type === 'meme_jour' && (
+      {(resultatRecherche?.type === 'meme_jour' || resultatRecherche?.type === 'jour_proche') && (
         <div className="mb-6">
-          <p className="text-sm font-medium mb-2">
-            Créneaux disponibles le {format(new Date(dateSouhaitee), 'EEEE d MMMM', { locale: fr })} :
+          {resultatRecherche.type === 'jour_proche' && (
+            <div className="bg-[var(--color-warning-bg)] rounded-lg p-3 mb-3">
+              <p className="text-sm text-[var(--color-warning-text)]">
+                Rien le {format(new Date(dateSouhaitee), 'EEEE d MMMM', { locale: fr })}. Prochain
+                jour disponible :
+              </p>
+            </div>
+          )}
+          <p className="text-xs uppercase tracking-wide text-[var(--color-ink-soft)] mb-2">
+            {format(new Date(resultatRecherche.creneaux[0].debut), 'EEEE d MMMM', { locale: fr })}
           </p>
           <div className="flex flex-wrap gap-2">
             {resultatRecherche.creneaux.map((c) => (
               <button
+                type="button"
                 key={c.id}
                 onClick={() => setCreneauSelectionne(c)}
-                className={`px-3 py-1.5 rounded border text-sm ${
+                className={`font-[family-name:var(--font-mono)] px-3 py-1.5 rounded-md border text-sm transition-colors ${
                   creneauSelectionne?.id === c.id
-                    ? 'bg-black text-white border-black'
-                    : 'bg-white hover:bg-gray-50'
+                    ? 'bg-[var(--color-accent)] border-[var(--color-accent)] text-white'
+                    : 'bg-[var(--color-surface)] border-[var(--color-line)] hover:border-[var(--color-accent)]'
                 }`}
               >
                 {format(new Date(c.debut), 'HH:mm')}
@@ -348,67 +372,48 @@ export default function CreneauxDisponibles({
         </div>
       )}
 
-      {resultatRecherche && resultatRecherche.type === 'jour_proche' && (
+      {resultatRecherche?.type === 'rien' && (
         <div className="mb-6">
-          <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 mb-3">
-            <p className="text-sm text-amber-800">
-              Rien de disponible le {format(new Date(dateSouhaitee), 'EEEE d MMMM', { locale: fr })}. Voici le prochain jour disponible :
-            </p>
-          </div>
-          <p className="text-sm font-medium mb-2">
-            {format(new Date(resultatRecherche.creneaux[0].debut), 'EEEE d MMMM', { locale: fr })} :
-          </p>
-          <div className="flex flex-wrap gap-2">
-            {resultatRecherche.creneaux.map((c) => (
-              <button
-                key={c.id}
-                onClick={() => setCreneauSelectionne(c)}
-                className={`px-3 py-1.5 rounded border text-sm ${
-                  creneauSelectionne?.id === c.id
-                    ? 'bg-black text-white border-black'
-                    : 'bg-white hover:bg-gray-50'
-                }`}
-              >
-                {format(new Date(c.debut), 'HH:mm')}
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {resultatRecherche && resultatRecherche.type === 'rien' && (
-        <div className="mb-6">
-          <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-4">
-            <p className="text-sm text-amber-800">
+          <div className="bg-[var(--color-warning-bg)] rounded-lg p-4 mb-4">
+            <p className="text-sm text-[var(--color-warning-text)]">
               Aucune disponibilité proche de cette date pour ce motif dans cette pharmacie.
             </p>
           </div>
 
           {chargementAlternatives && (
-            <p className="text-sm text-gray-500">Recherche de pharmacies du groupement à proximité...</p>
+            <p className="text-sm text-[var(--color-ink-soft)] flex items-center gap-2">
+              <PharmacyCross className="w-4 h-4 text-[var(--color-accent)] animate-pulse-cross" />
+              Recherche de pharmacies du groupement à proximité...
+            </p>
           )}
 
           {!chargementAlternatives && alternatives.length > 0 && (
             <div>
-              <p className="text-sm font-medium mb-2">Souhaitez-vous être redirigé vers une autre pharmacie du groupement ?</p>
+              <p className="text-sm font-medium text-[var(--color-ink)] mb-2">
+                Souhaitez-vous être redirigé vers une autre pharmacie du groupement ?
+              </p>
               <div className="space-y-2">
                 {alternatives.map((alt) => (
                   <a
                     key={alt.pharmacie_id}
                     href={`/pharmacie/${alt.pharmacie_id}`}
-                    className="block border rounded-lg p-3 hover:bg-gray-50"
+                    className="block border border-[var(--color-line)] rounded-lg p-3 hover:border-[var(--color-primary)] transition-colors"
                   >
                     <div className="flex justify-between">
-                      <span className="font-medium text-sm">{alt.nom}</span>
-                      <span className="text-xs text-gray-500">{alt.distance_km} km</span>
+                      <span className="font-medium text-sm text-[var(--color-ink)]">{alt.nom}</span>
+                      <span className="font-[family-name:var(--font-mono)] text-xs text-[var(--color-ink-soft)]">
+                        {alt.distance_km} km
+                      </span>
                     </div>
-                    <p className="text-xs text-gray-600">{alt.adresse}</p>
-                    <p className="text-xs text-green-700 mt-1">
+                    <p className="text-xs text-[var(--color-ink-soft)]">{alt.adresse}</p>
+                    <p className="text-xs text-[var(--color-accent)] mt-1">
                       Créneau le plus proche :{' '}
-                      {format(new Date(alt.prochain_creneau), "EEEE d MMMM 'à' HH:mm", { locale: fr })}
+                      {format(new Date(alt.prochain_creneau), "EEEE d MMMM 'à' HH:mm", {
+                        locale: fr,
+                      })}
                     </p>
                     {alt.creneaux_proches.length > 1 && (
-                      <p className="text-xs text-gray-500 mt-0.5">
+                      <p className="text-xs text-[var(--color-ink-soft)] mt-0.5 font-[family-name:var(--font-mono)]">
                         Aussi :{' '}
                         {alt.creneaux_proches
                           .slice(1)
@@ -423,43 +428,64 @@ export default function CreneauxDisponibles({
           )}
 
           {!chargementAlternatives && alternatives.length === 0 && (
-            <p className="text-sm text-gray-500">
-              Aucune pharmacie du groupement à proximité n&apos;a de disponibilité pour ce motif.
-              Contactez directement la pharmacie pour plus d&apos;options.
+            <p className="text-sm text-[var(--color-ink-soft)]">
+              Aucune pharmacie du groupement à proximité n&apos;a de disponibilité. Contactez
+              directement la pharmacie.
             </p>
           )}
         </div>
       )}
 
-      {/* Formulaire de résa */}
       {creneauSelectionne && (
-        <div className="border rounded-lg p-4 bg-gray-50">
-          <p className="text-sm font-medium mb-3">
-            Créneau choisi : {format(new Date(creneauSelectionne.debut), "EEEE d MMMM 'à' HH:mm", { locale: fr })}
+        <div className="border-t border-dashed border-[var(--color-line)] pt-5">
+          <p className="text-sm font-medium text-[var(--color-ink)] mb-3">
+            Créneau choisi :{' '}
+            <span className="font-[family-name:var(--font-mono)] text-[var(--color-accent)]">
+              {format(new Date(creneauSelectionne.debut), "EEEE d MMMM 'à' HH:mm", { locale: fr })}
+            </span>
           </p>
 
           <div className="space-y-3">
-            <input
-              type="text"
-              placeholder="Votre nom"
-              value={nom}
-              onChange={(e) => setNom(e.target.value)}
-              className="w-full border rounded px-3 py-2"
-            />
+            <div className="grid grid-cols-2 gap-3">
+              <input
+                type="text"
+                placeholder="Prénom"
+                value={prenom}
+                onChange={(e) => setPrenom(e.target.value)}
+                className={inputClass}
+                autoComplete="given-name"
+              />
+              <input
+                type="text"
+                placeholder="Nom de famille"
+                value={nom}
+                onChange={(e) => setNom(e.target.value)}
+                className={inputClass}
+                autoComplete="family-name"
+              />
+            </div>
             <input
               type="tel"
               placeholder="Votre téléphone"
               value={telephone}
               onChange={(e) => setTelephone(e.target.value)}
-              className="w-full border rounded px-3 py-2"
+              className={inputClass}
+            />
+            <input
+              type="email"
+              placeholder="Votre email (optionnel)"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className={inputClass}
             />
 
             {erreur && <p className="text-red-600 text-sm">{erreur}</p>}
 
             <button
+              type="button"
               onClick={reserver}
               disabled={loading}
-              className="w-full bg-black text-white py-2 rounded disabled:opacity-50"
+              className="w-full bg-[var(--color-primary)] hover:bg-[var(--color-primary-hover)] text-white py-2.5 rounded-lg text-sm font-medium disabled:opacity-50 transition-colors"
             >
               {loading ? 'Réservation...' : 'Confirmer le rendez-vous'}
             </button>

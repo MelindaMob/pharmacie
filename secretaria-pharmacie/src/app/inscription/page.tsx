@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
+import Logo from '@/components/Logo'
 
 export default function InscriptionPage() {
   const [email, setEmail] = useState('')
@@ -51,75 +52,69 @@ export default function InscriptionPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50">
-      <div className="bg-white p-8 rounded-lg shadow-sm border w-full max-w-sm">
-        <h1 className="text-2xl font-bold mb-6 text-center">Créer un compte</h1>
+    <div className="min-h-screen flex items-center justify-center bg-[var(--color-bg)]">
+      <div className="ticket-perforation bg-[var(--color-surface)] p-8 rounded-t-xl border border-[var(--color-line)] w-full max-w-sm pb-10">
+        <div className="flex justify-center mb-6">
+          <Logo className="h-10 w-auto" href="/" />
+        </div>
+        <h1 className="font-[family-name:var(--font-display)] text-2xl text-center text-[var(--color-ink)] mb-6">
+          Créer un compte
+        </h1>
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium mb-1">Nom</label>
-            <input
-              type="text"
-              value={nom}
-              onChange={(e) => setNom(e.target.value)}
-              required
-              className="w-full border rounded px-3 py-2"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium mb-1">Téléphone</label>
-            <input
-              type="tel"
-              value={telephone}
-              onChange={(e) => setTelephone(e.target.value)}
-              required
-              className="w-full border rounded px-3 py-2"
-              placeholder="0652774261"
-            />
-            <p className="text-xs text-gray-500 mt-1">
-              Si vous avez déjà pris un RDV avec ce numéro, il sera automatiquement lié à votre
-              compte.
-            </p>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium mb-1">Email</label>
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-              className="w-full border rounded px-3 py-2"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium mb-1">Mot de passe</label>
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              minLength={6}
-              className="w-full border rounded px-3 py-2"
-            />
-          </div>
+          {(
+            [
+              { label: 'Nom', value: nom, setter: setNom, type: 'text' as const },
+              {
+                label: 'Téléphone',
+                value: telephone,
+                setter: setTelephone,
+                type: 'tel' as const,
+                placeholder: '0652774261',
+              },
+              { label: 'Email', value: email, setter: setEmail, type: 'email' as const },
+              {
+                label: 'Mot de passe',
+                value: password,
+                setter: setPassword,
+                type: 'password' as const,
+              },
+            ] as const
+          ).map((f) => (
+            <div key={f.label}>
+              <label className="block text-xs uppercase tracking-wide text-[var(--color-ink-soft)] mb-1.5">
+                {f.label}
+              </label>
+              <input
+                type={f.type}
+                value={f.value}
+                onChange={(e) => f.setter(e.target.value)}
+                required
+                placeholder={'placeholder' in f ? f.placeholder : undefined}
+                minLength={f.type === 'password' ? 6 : undefined}
+                className="w-full border border-[var(--color-line)] rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)] focus:border-transparent"
+              />
+            </div>
+          ))}
+          <p className="text-xs text-[var(--color-ink-soft)]">
+            Si vous avez déjà pris un RDV avec ce numéro, il sera automatiquement lié à votre
+            compte.
+          </p>
 
           {error && <p className="text-red-600 text-sm">{error}</p>}
 
           <button
             type="submit"
             disabled={loading}
-            className="w-full bg-black text-white py-2 rounded disabled:opacity-50"
+            className="w-full bg-[var(--color-primary)] hover:bg-[var(--color-primary-hover)] text-white py-2.5 rounded-lg text-sm font-medium disabled:opacity-50 transition-colors"
           >
             {loading ? 'Création...' : 'Créer mon compte'}
           </button>
         </form>
 
-        <p className="text-sm text-center mt-4 text-gray-600">
+        <p className="text-sm text-center mt-4 text-[var(--color-ink-soft)]">
           Déjà un compte ?{' '}
-          <a href="/connexion" className="underline">
+          <a href="/connexion" className="text-[var(--color-primary)] underline">
             Se connecter
           </a>
         </p>

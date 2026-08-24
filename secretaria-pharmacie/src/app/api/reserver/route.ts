@@ -10,9 +10,13 @@ const supabaseAdmin = createClient(
 )
 
 export async function POST(request: NextRequest) {
-  const { creneauId, nom, telephone } = await request.json()
+  const { creneauId, prenom, nom, telephone, email } = await request.json()
 
-  if (!creneauId || !nom || !telephone) {
+  const prenomTrim = typeof prenom === 'string' ? prenom.trim() : ''
+  const nomTrim = typeof nom === 'string' ? nom.trim() : ''
+  const nomComplet = [prenomTrim, nomTrim].filter(Boolean).join(' ')
+
+  if (!creneauId || !prenomTrim || !nomTrim || !telephone) {
     return NextResponse.json({ error: 'Champs manquants' }, { status: 400 })
   }
 
@@ -30,10 +34,15 @@ export async function POST(request: NextRequest) {
   }
 
   const telephoneNormalise = normaliserNumeroFrancais(telephone)
+  const emailNormalise = email?.trim() || null
 
   const { data: client, error: clientError } = await supabaseAdmin
     .from('clients')
-    .insert({ nom, telephone: telephoneNormalise })
+    .insert({
+      nom: nomComplet,
+      telephone: telephoneNormalise,
+      ...(emailNormalise ? { email: emailNormalise } : {}),
+    })
     .select('id')
     .single()
 
@@ -46,8 +55,9 @@ export async function POST(request: NextRequest) {
     .insert({
       creneau_id: creneauId,
       client_id: client.id,
-      client_nom: nom,
+      client_nom: nomComplet,
       client_telephone: telephoneNormalise,
+      client_email: emailNormalise,
       canal: 'web',
       statut: 'confirme',
     })
