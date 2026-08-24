@@ -19,11 +19,11 @@ export default function Header() {
   }
 
   return (
-    <header className="border-b border-[var(--color-line)] bg-[var(--color-surface)]">
-      <div className="max-w-6xl mx-auto px-6 py-3 flex items-center justify-between">
+    <header className="sticky top-0 z-30 border-b border-[var(--color-line)] bg-[var(--color-surface)]">
+      <div className="max-w-6xl mx-auto px-6 py-3 flex items-center justify-between gap-8">
         <Logo className="h-8 w-auto" priority />
 
-        <nav className="flex items-center gap-4 text-sm">
+        <nav className="flex items-center gap-4 text-sm shrink-0">
           <Link
             href="/connexion"
             className="text-[var(--color-ink-soft)] hover:text-[var(--color-ink)]"

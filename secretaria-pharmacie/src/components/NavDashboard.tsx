@@ -19,8 +19,8 @@ export function NavDashboardClient({
   nbNonLus?: number
 }) {
   return (
-    <div className="mb-6">
-      <div className="flex items-center justify-between mb-4">
+    <div className="sticky top-0 z-20 mb-6 bg-[var(--color-bg)] pt-1 pb-3">
+      <div className="flex items-center justify-between gap-8 mb-6">
         <Logo className="h-9 w-auto" href="/dashboard-client" />
         <BoutonDeconnexion />
       </div>

@@ -33,7 +33,7 @@ export default async function AdminPage() {
   return (
     <div className="min-h-screen bg-[var(--color-bg)]">
       <div className="max-w-5xl mx-auto p-6">
-        <div className="flex items-center justify-between mb-6">
+        <div className="sticky top-0 z-20 -mx-6 px-6 py-4 mb-6 flex items-center justify-between gap-8 bg-[var(--color-bg)]">
           <Logo className="h-9 w-auto" href="/admin" />
           <BoutonDeconnexion />
         </div>
