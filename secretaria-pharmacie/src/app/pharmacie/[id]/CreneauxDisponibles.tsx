@@ -96,7 +96,6 @@ export default function CreneauxDisponibles({
   const [prenom, setPrenom] = useState('')
   const [nom, setNom] = useState('')
   const [telephone, setTelephone] = useState('')
-  const [email, setEmail] = useState('')
   const [confirmation, setConfirmation] = useState('')
   const [loading, setLoading] = useState(false)
   const [erreur, setErreur] = useState('')
@@ -236,10 +235,8 @@ export default function CreneauxDisponibles({
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         creneauId: creneauSelectionne.id,
-        prenom: prenom.trim(),
-        nom: nom.trim(),
+        nom: [prenom.trim(), nom.trim()].filter(Boolean).join(' '),
         telephone,
-        email,
       }),
     })
 
@@ -469,13 +466,6 @@ export default function CreneauxDisponibles({
               placeholder="Votre téléphone"
               value={telephone}
               onChange={(e) => setTelephone(e.target.value)}
-              className={inputClass}
-            />
-            <input
-              type="email"
-              placeholder="Votre email (optionnel)"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
               className={inputClass}
             />
 
