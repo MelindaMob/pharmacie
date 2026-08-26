@@ -2,8 +2,6 @@ import { createClient } from '@supabase/supabase-js'
 import { NextRequest, NextResponse } from 'next/server'
 import { envoyerSms, normaliserNumeroFrancais } from '@/lib/sms/envoyerSms'
 import { unwrapEmbed } from '@/lib/supabase/unwrap'
-import { format } from 'date-fns'
-import { fr } from 'date-fns/locale'
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -75,9 +73,14 @@ export async function POST(request: NextRequest) {
   }
 
   const pharmacie = unwrapEmbed<{ nom: string; adresse: string }>(creneau.pharmacies)
-  const dateFormatee = format(new Date(creneau.debut), "EEEE d MMMM 'à' HH:mm", {
-    locale: fr,
-  })
+  const dateFormatee = new Intl.DateTimeFormat('fr-FR', {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+    hour: '2-digit',
+    minute: '2-digit',
+    timeZone: 'Europe/Paris',
+  }).format(new Date(creneau.debut))
   const lienGestion = `${process.env.NEXT_PUBLIC_SITE_URL}/rdv/gestion/${reservation.token_gestion}`
 
   const message = `RDV confirmé chez ${pharmacie?.nom} le ${dateFormatee}. Gérer/annuler : ${lienGestion}`
