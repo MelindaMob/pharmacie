@@ -1,15 +1,38 @@
-import { createClient } from '@/lib/supabase/server'
+import { createClient } from '@supabase/supabase-js'
 import { addDays, addMinutes, format, startOfDay } from 'date-fns'
 import { fromZonedTime, toZonedTime } from 'date-fns-tz'
 
 const JOURS = ['dimanche', 'lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi']
 const TZ = 'Europe/Paris'
 
+function messageErreur(error: unknown): string {
+  if (!error) return 'Erreur inconnue'
+  if (typeof error === 'string') return error
+  if (typeof error === 'object' && error !== null) {
+    const e = error as { message?: unknown; details?: unknown; hint?: unknown; code?: unknown }
+    if (typeof e.message === 'string' && e.message.trim()) return e.message
+    try {
+      return JSON.stringify(error)
+    } catch {
+      return 'Erreur inconnue'
+    }
+  }
+  return 'Erreur inconnue'
+}
+
+function adminClient() {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    { auth: { autoRefreshToken: false, persistSession: false } }
+  )
+}
+
 export async function generateCreneauxPourPharmacie(
   pharmacieId: string,
   nbJours: number = 28 // 4 semaines
 ) {
-  const supabase = await createClient()
+  const supabase = adminClient()
 
   // 1. Récupérer la pharmacie (horaires + types de RDV)
   const { data: pharmacie } = await supabase
@@ -18,14 +41,18 @@ export async function generateCreneauxPourPharmacie(
     .eq('id', pharmacieId)
     .single()
 
-  if (!pharmacie?.horaires_ouverture) return { error: 'Horaires non configurés' }
+  if (!pharmacie?.horaires_ouverture) {
+    return { success: false, count: 0, error: 'Horaires non configurés' }
+  }
 
   const { data: typesRdv } = await supabase
     .from('types_rdv')
     .select('id, duree_minutes')
     .eq('pharmacie_id', pharmacieId)
 
-  if (!typesRdv || typesRdv.length === 0) return { error: 'Aucun type de RDV configuré' }
+  if (!typesRdv || typesRdv.length === 0) {
+    return { success: false, count: 0, error: 'Aucun type de RDV configuré' }
+  }
 
   // Référence « aujourd’hui » en heure de Paris (évite le décalage UTC de Vercel)
   const maintenantParis = toZonedTime(new Date(), TZ)
@@ -58,20 +85,17 @@ export async function generateCreneauxPourPharmacie(
 
     const exception = exceptionsParDate.get(dateStr)
 
-    // Jour fermé exceptionnellement → on saute
     if (exception?.ferme) continue
 
-    // Horaires du jour : exception si présente, sinon horaires habituels
     const horairesJour =
       exception?.horaires_speciaux ?? pharmacie.horaires_ouverture[nomJour]
 
-    if (!horairesJour) continue // pharmacie fermée ce jour-là (ex: dimanche)
+    if (!horairesJour) continue
 
     const { debut, fin } = horairesJour as { debut: string; fin: string }
     const debutNorm = debut.length === 5 ? `${debut}:00` : debut
     const finNorm = fin.length === 5 ? `${fin}:00` : fin
 
-    // 4. Pour chaque type de RDV, créer les créneaux (09:00 = 09:00 Europe/Paris)
     for (const type of typesRdv) {
       const dureeMin = type.duree_minutes
 
@@ -91,7 +115,7 @@ export async function generateCreneauxPourPharmacie(
     }
   }
 
-  // 5. Effacer les anciens créneaux libres sur la période (on garde ceux avec un RDV)
+  // 4. Effacer les anciens créneaux libres sur la période (on garde ceux avec un RDV)
   const debutPeriodeUtc = fromZonedTime(
     `${format(debutPeriodeParis, 'yyyy-MM-dd')} 00:00:00`,
     TZ
@@ -101,14 +125,17 @@ export async function generateCreneauxPourPharmacie(
     TZ
   )
 
-  // Créneaux liés à un RDV non annulé → à ne jamais supprimer
-  const { data: creneauxProteges } = await supabase
+  const { data: creneauxProteges, error: protegesError } = await supabase
     .from('reservations')
     .select('creneau_id, creneaux!inner(pharmacie_id, debut)')
     .eq('creneaux.pharmacie_id', pharmacieId)
     .gte('creneaux.debut', debutPeriodeUtc.toISOString())
     .lt('creneaux.debut', finPeriodeUtc.toISOString())
     .neq('statut', 'annule')
+
+  if (protegesError) {
+    return { success: false, count: 0, error: messageErreur(protegesError) }
+  }
 
   const idsProteges = new Set(
     (creneauxProteges ?? [])
@@ -125,7 +152,7 @@ export async function generateCreneauxPourPharmacie(
     .eq('statut', 'disponible')
 
   if (selectError) {
-    return { success: false, count: 0, error: selectError }
+    return { success: false, count: 0, error: messageErreur(selectError) }
   }
 
   const idsASupprimer = (anciensLibres ?? [])
@@ -133,21 +160,27 @@ export async function generateCreneauxPourPharmacie(
     .filter((id) => !idsProteges.has(id))
 
   if (idsASupprimer.length > 0) {
-    const { error: deleteError } = await supabase
-      .from('creneaux')
-      .delete()
-      .in('id', idsASupprimer)
-
-    if (deleteError) {
-      return { success: false, count: 0, error: deleteError }
+    // Supabase limite parfois les .in() très longs → paquets
+    const tailleLot = 200
+    for (let i = 0; i < idsASupprimer.length; i += tailleLot) {
+      const lot = idsASupprimer.slice(i, i + tailleLot)
+      const { error: deleteError } = await supabase.from('creneaux').delete().in('id', lot)
+      if (deleteError) {
+        return { success: false, count: 0, error: messageErreur(deleteError) }
+      }
     }
   }
 
-  // 6. Insérer les nouveaux créneaux (ignore si un RDV occupe déjà le même horaire)
-  const { error } = await supabase.from('creneaux').upsert(nouveauxCreneaux, {
-    onConflict: 'pharmacie_id,type_rdv_id,debut',
-    ignoreDuplicates: true,
-  })
+  // 5. Insérer les nouveaux créneaux
+  if (nouveauxCreneaux.length > 0) {
+    const { error } = await supabase.from('creneaux').upsert(nouveauxCreneaux, {
+      onConflict: 'pharmacie_id,type_rdv_id,debut',
+      ignoreDuplicates: true,
+    })
+    if (error) {
+      return { success: false, count: 0, error: messageErreur(error) }
+    }
+  }
 
-  return { success: !error, count: nouveauxCreneaux.length, error }
+  return { success: true, count: nouveauxCreneaux.length }
 }

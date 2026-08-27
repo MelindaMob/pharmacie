@@ -2,11 +2,10 @@ import { createClient } from '@/lib/supabase/server'
 import { getUserRole } from '@/lib/auth/getRole'
 import { redirect } from 'next/navigation'
 import DashboardNav from '../DashboardNav'
-import HorairesForm from '../HorairesForm'
+import HorairesEtGeneration from '../HorairesEtGeneration'
 import HorairesExceptionnelsForm from './HorairesExceptionnelsForm'
 import TypesRdvForm from '../TypesRdvForm'
 import DelaiAnnulationForm from '../DelaiAnnulationForm'
-import GenererCreneauxButton from '../GenererCreneauxButton'
 import { compterNonLusPharmacie } from '@/lib/messages/nonLus'
 
 export const dynamic = 'force-dynamic'
@@ -50,7 +49,7 @@ export default async function ParametresPharmaciePage() {
           Adresse : {pharmacie?.adresse || 'Non renseignée par Secretar.IA pour le moment'}
         </p>
 
-        <HorairesForm
+        <HorairesEtGeneration
           pharmacieId={role.id}
           horairesInitiaux={pharmacie?.horaires_ouverture ?? {}}
         />
@@ -68,7 +67,6 @@ export default async function ParametresPharmaciePage() {
           pharmacieId={role.id}
           delaiInitial={pharmacie?.delai_annulation_heures ?? 2}
         />
-        <GenererCreneauxButton pharmacieId={role.id} />
       </div>
     </div>
   )
