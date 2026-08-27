@@ -1,7 +1,9 @@
 import { createClient } from '@/lib/supabase/server'
-import { addDays, addMinutes, format, parse, startOfDay } from 'date-fns'
+import { addDays, addMinutes, format, startOfDay } from 'date-fns'
+import { fromZonedTime, toZonedTime } from 'date-fns-tz'
 
 const JOURS = ['dimanche', 'lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi']
+const TZ = 'Europe/Paris'
 
 export async function generateCreneauxPourPharmacie(
   pharmacieId: string,
@@ -25,17 +27,20 @@ export async function generateCreneauxPourPharmacie(
 
   if (!typesRdv || typesRdv.length === 0) return { error: 'Aucun type de RDV configuré' }
 
+  // Référence « aujourd’hui » en heure de Paris (évite le décalage UTC de Vercel)
+  const maintenantParis = toZonedTime(new Date(), TZ)
+  const debutPeriodeParis = startOfDay(maintenantParis)
+  const finPeriodeParis = addDays(debutPeriodeParis, nbJours)
+
   // 2. Récupérer les horaires exceptionnels sur la période
   const { data: exceptions } = await supabase
     .from('horaires_exceptionnels')
     .select('date, ferme, horaires_speciaux')
     .eq('pharmacie_id', pharmacieId)
-    .gte('date', format(new Date(), 'yyyy-MM-dd'))
-    .lte('date', format(addDays(new Date(), nbJours), 'yyyy-MM-dd'))
+    .gte('date', format(debutPeriodeParis, 'yyyy-MM-dd'))
+    .lte('date', format(finPeriodeParis, 'yyyy-MM-dd'))
 
-  const exceptionsParDate = new Map(
-    (exceptions ?? []).map((e) => [e.date, e])
-  )
+  const exceptionsParDate = new Map((exceptions ?? []).map((e) => [e.date, e]))
 
   const nouveauxCreneaux: {
     pharmacie_id: string
@@ -45,11 +50,11 @@ export async function generateCreneauxPourPharmacie(
     statut: string
   }[] = []
 
-  // 3. Boucler sur chaque jour de la période
+  // 3. Boucler sur chaque jour de la période (calendrier Paris)
   for (let i = 0; i < nbJours; i++) {
-    const jourDate = addDays(startOfDay(new Date()), i)
-    const dateStr = format(jourDate, 'yyyy-MM-dd')
-    const nomJour = JOURS[jourDate.getDay()]
+    const jourParis = addDays(debutPeriodeParis, i)
+    const dateStr = format(jourParis, 'yyyy-MM-dd')
+    const nomJour = JOURS[jourParis.getDay()]
 
     const exception = exceptionsParDate.get(dateStr)
 
@@ -62,14 +67,16 @@ export async function generateCreneauxPourPharmacie(
 
     if (!horairesJour) continue // pharmacie fermée ce jour-là (ex: dimanche)
 
-    const { debut, fin } = horairesJour
+    const { debut, fin } = horairesJour as { debut: string; fin: string }
+    const debutNorm = debut.length === 5 ? `${debut}:00` : debut
+    const finNorm = fin.length === 5 ? `${fin}:00` : fin
 
-    // 4. Pour chaque type de RDV, créer les créneaux de la durée correspondante
+    // 4. Pour chaque type de RDV, créer les créneaux (09:00 = 09:00 Europe/Paris)
     for (const type of typesRdv) {
       const dureeMin = type.duree_minutes
 
-      let curseur = parse(`${dateStr} ${debut}`, 'yyyy-MM-dd HH:mm', new Date())
-      const finJournee = parse(`${dateStr} ${fin}`, 'yyyy-MM-dd HH:mm', new Date())
+      let curseur = fromZonedTime(`${dateStr} ${debutNorm}`, TZ)
+      const finJournee = fromZonedTime(`${dateStr} ${finNorm}`, TZ)
 
       while (addMinutes(curseur, dureeMin) <= finJournee) {
         nouveauxCreneaux.push({

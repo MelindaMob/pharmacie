@@ -139,26 +139,32 @@ export default function DefinirMotDePassePage() {
   }
 
   if (!pret && !erreur) {
-    return <div className="min-h-screen flex items-center justify-center">Chargement...</div>
+    return (
+      <div className="flex-1 flex items-center justify-center px-4 py-10">
+        <p className="text-sm text-[var(--color-ink-soft)] animate-fade-up">Chargement…</p>
+      </div>
+    )
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50">
-      <div className="bg-white p-8 rounded-lg shadow-sm border w-full max-w-sm">
+    <div className="flex-1 flex items-center justify-center px-4 py-10 sm:py-16">
+      <div className="ticket-perforation ui-panel w-full max-w-sm p-6 sm:p-8 pb-10 rounded-t-2xl animate-fade-up">
         <div className="flex justify-center mb-6">
-          <Logo className="h-10 w-auto" href="/" />
+          <Logo className="h-9 sm:h-10 w-auto" href="/" />
         </div>
-        <h1 className="text-2xl font-bold mb-2 text-center">Bienvenue</h1>
-        <p className="text-sm text-gray-600 text-center mb-6">
+        <h1 className="font-[family-name:var(--font-display)] text-2xl text-center text-[var(--color-ink)] mb-2">
+          Bienvenue
+        </h1>
+        <p className="text-sm text-[var(--color-ink-soft)] text-center mb-6 leading-relaxed">
           Choisissez votre mot de passe pour accéder à votre espace pharmacie.
         </p>
 
         {erreur && !pret ? (
-          <p className="text-red-600 text-sm text-center">{erreur}</p>
+          <p className="text-red-600 text-sm text-center leading-relaxed">{erreur}</p>
         ) : (
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label htmlFor="nouveau-mdp" className="block text-sm font-medium mb-1">
+              <label htmlFor="nouveau-mdp" className="ui-label">
                 Nouveau mot de passe
               </label>
               <input
@@ -170,12 +176,12 @@ export default function DefinirMotDePassePage() {
                 onChange={(e) => setPassword(e.target.value)}
                 required
                 minLength={6}
-                className="w-full border rounded px-3 py-2"
+                className="ui-input"
               />
             </div>
 
             <div>
-              <label htmlFor="confirm-mdp" className="block text-sm font-medium mb-1">
+              <label htmlFor="confirm-mdp" className="ui-label">
                 Confirmer le mot de passe
               </label>
               <input
@@ -187,17 +193,13 @@ export default function DefinirMotDePassePage() {
                 onChange={(e) => setConfirmation(e.target.value)}
                 required
                 minLength={6}
-                className="w-full border rounded px-3 py-2"
+                className="ui-input"
               />
             </div>
 
             {erreur && <p className="text-red-600 text-sm">{erreur}</p>}
 
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full bg-black text-white py-2 rounded disabled:opacity-50"
-            >
+            <button type="submit" disabled={loading} className="ui-btn-primary w-full">
               {loading ? 'Enregistrement...' : 'Accéder à mon espace'}
             </button>
           </form>
