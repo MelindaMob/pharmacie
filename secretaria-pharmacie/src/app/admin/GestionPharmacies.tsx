@@ -109,8 +109,7 @@ export default function GestionPharmacies({
                 </td>
                 <td className="py-2">
                   <a
-                    href={`/pharmacie/${p.id}`}
-                    target="_blank"
+                    href={`/admin/pharmacie/${p.id}`}
                     className="text-[var(--color-primary)] underline text-xs"
                   >
                     Voir la fiche

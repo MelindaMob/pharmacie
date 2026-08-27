@@ -73,7 +73,7 @@ export default function CreerPharmacieForm({ groupements }: { groupements: Group
         />
         <input
           type="tel"
-          placeholder="Numéro vocal Paul (Retell, optionnel)"
+          placeholder="Numéro vocal Paul (Telnyx/Retell, optionnel)"
           value={retellPhoneNumber}
           onChange={(e) => setRetellPhoneNumber(e.target.value)}
           className={`${inputClass} col-span-2`}
