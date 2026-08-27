@@ -1,6 +1,8 @@
 import { createClient as createAdminClient } from '@supabase/supabase-js'
+import { createClient } from '@/lib/supabase/server'
 import { getUserRole } from '@/lib/auth/getRole'
 import { redirect, notFound } from 'next/navigation'
+import AdminNav from '../../AdminNav'
 import FichePharmacieAdmin from './FichePharmacieAdmin'
 
 export const dynamic = 'force-dynamic'
@@ -19,14 +21,21 @@ export default async function AdminPharmaciePage({
   if (!role || role.role !== 'admin') redirect('/connexion')
 
   const { id } = await params
+  const supabase = await createClient()
 
-  const { data: pharmacie } = await supabaseAdmin
-    .from('pharmacies')
-    .select(
-      'id, nom, adresse, telephone, retell_phone_number, auth_user_id, horaires_ouverture, groupement_id, groupements(nom)'
-    )
-    .eq('id', id)
-    .single()
+  const [{ data: pharmacie }, { count: nbDemandesNouvelles }] = await Promise.all([
+    supabaseAdmin
+      .from('pharmacies')
+      .select(
+        'id, nom, adresse, telephone, retell_phone_number, auth_user_id, horaires_ouverture, groupement_id, groupements(nom)'
+      )
+      .eq('id', id)
+      .single(),
+    supabase
+      .from('demandes_contact')
+      .select('*', { count: 'exact', head: true })
+      .eq('statut', 'nouveau'),
+  ])
 
   if (!pharmacie) notFound()
 
@@ -48,18 +57,20 @@ export default async function AdminPharmaciePage({
     : groupementRaw?.nom ?? null
 
   return (
-    <FichePharmacieAdmin
-      pharmacie={{
-        id: pharmacie.id,
-        nom: pharmacie.nom,
-        adresse: pharmacie.adresse ?? '',
-        telephone: pharmacie.telephone ?? '',
-        retell_phone_number: pharmacie.retell_phone_number ?? null,
-        email,
-        groupement_nom: groupementNom,
-        horaires_ouverture: pharmacie.horaires_ouverture ?? null,
-        types_rdv: typesRdv ?? [],
-      }}
-    />
+    <AdminNav actif="pharmacies" nbDemandesNouvelles={nbDemandesNouvelles ?? 0}>
+      <FichePharmacieAdmin
+        pharmacie={{
+          id: pharmacie.id,
+          nom: pharmacie.nom,
+          adresse: pharmacie.adresse ?? '',
+          telephone: pharmacie.telephone ?? '',
+          retell_phone_number: pharmacie.retell_phone_number ?? null,
+          email,
+          groupement_nom: groupementNom,
+          horaires_ouverture: pharmacie.horaires_ouverture ?? null,
+          types_rdv: typesRdv ?? [],
+        }}
+      />
+    </AdminNav>
   )
 }

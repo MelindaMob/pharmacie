@@ -36,9 +36,8 @@ export default async function ConversationPharmaciePage({
   const nbNonLus = await compterNonLusPharmacie(role.id)
 
   return (
-    <div className="min-h-screen px-4 py-4 sm:p-6 lg:p-8">
-      <div className="max-w-3xl mx-auto">
-        <DashboardNav actif="messages" nbNonLus={nbNonLus} />
+    <DashboardNav actif="messages" nbNonLus={nbNonLus}>
+      <div className="max-w-3xl">
         <Link
           href="/dashboard-pharmacie/messages"
           className="text-sm text-[var(--color-ink-soft)] hover:underline"
@@ -53,6 +52,6 @@ export default async function ConversationPharmaciePage({
         </p>
         <Messagerie reservationId={reservation.id} role="pharmacie" />
       </div>
-    </div>
+    </DashboardNav>
   )
 }

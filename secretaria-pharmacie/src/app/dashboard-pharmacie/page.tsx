@@ -56,12 +56,8 @@ export default async function DashboardPharmaciePage() {
   const nbNonLus = await compterNonLusPharmacie(role.id)
 
   return (
-    <div className="min-h-screen px-4 py-4 sm:p-6 lg:p-8">
-      <div className="max-w-5xl mx-auto">
-        <DashboardNav actif="calendrier" nbNonLus={nbNonLus} />
-
-        <DashboardCalendar creneaux={creneaux} pharmacieId={role.id} />
-      </div>
-    </div>
+    <DashboardNav actif="calendrier" nbNonLus={nbNonLus}>
+      <DashboardCalendar creneaux={creneaux} pharmacieId={role.id} />
+    </DashboardNav>
   )
 }

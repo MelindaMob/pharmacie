@@ -2,23 +2,18 @@ import { createClient } from '@/lib/supabase/server'
 import { getUserRole } from '@/lib/auth/getRole'
 import { redirect } from 'next/navigation'
 import AdminNav from '../AdminNav'
-import ListeDemandesContact from './ListeDemandesContact'
+import GestionGroupements from '../GestionGroupements'
 
 export const dynamic = 'force-dynamic'
 
-export default async function DemandesContactPage() {
+export default async function AdminGroupementsPage() {
   const role = await getUserRole()
   if (!role || role.role !== 'admin') redirect('/connexion')
 
   const supabase = await createClient()
 
-  const [{ data: demandes }, { count: nbDemandesNouvelles }] = await Promise.all([
-    supabase
-      .from('demandes_contact')
-      .select(
-        'id, nom_pharmacie, email, telephone, message, est_independante, nom_groupement, statut, created_at'
-      )
-      .order('created_at', { ascending: false }),
+  const [{ data: groupements }, { count: nbDemandesNouvelles }] = await Promise.all([
+    supabase.from('groupements').select('id, nom').order('nom'),
     supabase
       .from('demandes_contact')
       .select('*', { count: 'exact', head: true })
@@ -26,11 +21,11 @@ export default async function DemandesContactPage() {
   ])
 
   return (
-    <AdminNav actif="demandes" nbDemandesNouvelles={nbDemandesNouvelles ?? 0}>
+    <AdminNav actif="groupements" nbDemandesNouvelles={nbDemandesNouvelles ?? 0}>
       <h1 className="font-[family-name:var(--font-display)] text-2xl text-[var(--color-ink)] mb-6">
-        Demandes de contact
+        Groupements
       </h1>
-      <ListeDemandesContact demandes={demandes ?? []} />
+      <GestionGroupements groupements={groupements ?? []} />
     </AdminNav>
   )
 }

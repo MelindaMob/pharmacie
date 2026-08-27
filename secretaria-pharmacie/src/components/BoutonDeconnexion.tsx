@@ -21,10 +21,9 @@ export default function BoutonDeconnexion() {
       type="button"
       onClick={deconnecter}
       disabled={loading}
-      className="ui-btn-ghost shrink-0 disabled:opacity-50"
+      className="ui-btn-ghost shrink-0 !py-1.5 !px-3 text-sm disabled:opacity-50"
     >
-      <span className="sm:hidden">{loading ? '…' : 'Sortir'}</span>
-      <span className="hidden sm:inline">{loading ? 'Déconnexion...' : 'Se déconnecter'}</span>
+      {loading ? '…' : 'Déconnexion'}
     </button>
   )
 }
