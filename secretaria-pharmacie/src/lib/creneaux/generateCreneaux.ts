@@ -91,7 +91,59 @@ export async function generateCreneauxPourPharmacie(
     }
   }
 
-  // 5. Insérer en base, en ignorant les doublons (même pharmacie/type/debut)
+  // 5. Effacer les anciens créneaux libres sur la période (on garde ceux avec un RDV)
+  const debutPeriodeUtc = fromZonedTime(
+    `${format(debutPeriodeParis, 'yyyy-MM-dd')} 00:00:00`,
+    TZ
+  )
+  const finPeriodeUtc = fromZonedTime(
+    `${format(finPeriodeParis, 'yyyy-MM-dd')} 00:00:00`,
+    TZ
+  )
+
+  // Créneaux liés à un RDV non annulé → à ne jamais supprimer
+  const { data: creneauxProteges } = await supabase
+    .from('reservations')
+    .select('creneau_id, creneaux!inner(pharmacie_id, debut)')
+    .eq('creneaux.pharmacie_id', pharmacieId)
+    .gte('creneaux.debut', debutPeriodeUtc.toISOString())
+    .lt('creneaux.debut', finPeriodeUtc.toISOString())
+    .neq('statut', 'annule')
+
+  const idsProteges = new Set(
+    (creneauxProteges ?? [])
+      .map((r) => r.creneau_id)
+      .filter((id): id is string => typeof id === 'string')
+  )
+
+  const { data: anciensLibres, error: selectError } = await supabase
+    .from('creneaux')
+    .select('id')
+    .eq('pharmacie_id', pharmacieId)
+    .gte('debut', debutPeriodeUtc.toISOString())
+    .lt('debut', finPeriodeUtc.toISOString())
+    .eq('statut', 'disponible')
+
+  if (selectError) {
+    return { success: false, count: 0, error: selectError }
+  }
+
+  const idsASupprimer = (anciensLibres ?? [])
+    .map((c) => c.id)
+    .filter((id) => !idsProteges.has(id))
+
+  if (idsASupprimer.length > 0) {
+    const { error: deleteError } = await supabase
+      .from('creneaux')
+      .delete()
+      .in('id', idsASupprimer)
+
+    if (deleteError) {
+      return { success: false, count: 0, error: deleteError }
+    }
+  }
+
+  // 6. Insérer les nouveaux créneaux (ignore si un RDV occupe déjà le même horaire)
   const { error } = await supabase.from('creneaux').upsert(nouveauxCreneaux, {
     onConflict: 'pharmacie_id,type_rdv_id,debut',
     ignoreDuplicates: true,

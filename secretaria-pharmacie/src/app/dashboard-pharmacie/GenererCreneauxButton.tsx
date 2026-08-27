@@ -37,8 +37,8 @@ export default function GenererCreneauxButton({ pharmacieId }: { pharmacieId: st
       </button>
       {message && <p className="mt-2 text-sm text-[var(--color-ink)]">{message}</p>}
       <p className="text-xs text-[var(--color-ink-soft)] mt-2 leading-relaxed">
-        À relancer après chaque modification des horaires, ou une fois par semaine pour garder des
-        créneaux à venir.
+        Remplace les anciens créneaux disponibles sur 4 semaines. Les rendez-vous déjà pris sont
+        conservés. À relancer après chaque modification des horaires.
       </p>
     </div>
   )
