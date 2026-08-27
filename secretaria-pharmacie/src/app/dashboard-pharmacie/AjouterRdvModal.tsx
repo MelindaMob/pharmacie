@@ -215,6 +215,9 @@ export default function AjouterRdvModal({
               onChange={(e) => setTelephone(e.target.value)}
               className="w-full border border-[var(--color-line)] rounded-lg px-3 py-2 text-sm"
             />
+            <p className="text-xs text-[var(--color-ink-soft)] -mt-1">
+              Un SMS de confirmation avec le lien de gestion sera envoyé à ce numéro.
+            </p>
             <input
               type="email"
               placeholder="Email (optionnel)"

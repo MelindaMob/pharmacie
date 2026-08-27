@@ -1,7 +1,8 @@
 import { createClient } from '@supabase/supabase-js'
 import { NextRequest, NextResponse } from 'next/server'
 import { getUserRole } from '@/lib/auth/getRole'
-import { normaliserNumeroFrancais } from '@/lib/sms/envoyerSms'
+import { envoyerSms, normaliserNumeroFrancais } from '@/lib/sms/envoyerSms'
+import { unwrapEmbed } from '@/lib/supabase/unwrap'
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -39,7 +40,7 @@ export async function POST(request: NextRequest) {
 
   const { data: creneau } = await supabaseAdmin
     .from('creneaux')
-    .select('id, statut, pharmacie_id')
+    .select('id, debut, statut, pharmacie_id, pharmacies(nom)')
     .eq('id', creneauId)
     .single()
 
@@ -83,22 +84,26 @@ export async function POST(request: NextRequest) {
     await supabaseAdmin.from('reservations').delete().eq('id', reservationExistante.id)
   }
 
-  const { error: resaError } = await supabaseAdmin.from('reservations').insert({
-    creneau_id: creneauId,
-    client_id: client.id,
-    client_nom: nomComplet,
-    client_telephone: telephoneNormalise,
-    client_email: emailNormalise,
-    canal: 'manuel',
-    statut: 'confirme',
-  })
+  const { data: reservation, error: resaError } = await supabaseAdmin
+    .from('reservations')
+    .insert({
+      creneau_id: creneauId,
+      client_id: client.id,
+      client_nom: nomComplet,
+      client_telephone: telephoneNormalise,
+      client_email: emailNormalise,
+      canal: 'manuel',
+      statut: 'confirme',
+    })
+    .select('id, token_gestion')
+    .single()
 
-  if (resaError) {
+  if (resaError || !reservation) {
     console.error('Erreur création réservation:', resaError)
     await supabaseAdmin.from('clients').delete().eq('id', client.id)
     return NextResponse.json(
-      { error: messageErreurReservation(resaError.code, resaError.message) },
-      { status: resaError.code === '23505' ? 409 : 500 }
+      { error: messageErreurReservation(resaError?.code, resaError?.message) },
+      { status: resaError?.code === '23505' ? 409 : 500 }
     )
   }
 
@@ -112,6 +117,22 @@ export async function POST(request: NextRequest) {
     console.error('Erreur mise à jour créneau:', updateError)
     return NextResponse.json({ error: "Ce créneau vient d'être pris" }, { status: 409 })
   }
+
+  const pharmacie = unwrapEmbed<{ nom: string }>(creneau.pharmacies)
+  const dateFormatee = new Intl.DateTimeFormat('fr-FR', {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+    hour: '2-digit',
+    minute: '2-digit',
+    timeZone: 'Europe/Paris',
+  }).format(new Date(creneau.debut))
+  const lienGestion = `${process.env.NEXT_PUBLIC_SITE_URL}/rdv/gestion/${reservation.token_gestion}`
+
+  await envoyerSms(
+    telephoneNormalise,
+    `RDV confirmé chez ${pharmacie?.nom} le ${dateFormatee}. Gérer/annuler : ${lienGestion}`
+  )
 
   return NextResponse.json({ success: true })
 }
