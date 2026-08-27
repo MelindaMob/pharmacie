@@ -43,7 +43,11 @@ export default function CreerPharmacieForm({ groupements }: { groupements: Group
       return
     }
 
-    setMessage(`Pharmacie créée. Un email d'invitation a été envoyé à ${email}.`)
+    setMessage(
+      data.lienInvitation
+        ? `Pharmacie créée. L’email d’invitation n’a pas pu partir automatiquement. Lien à envoyer : ${data.lienInvitation}`
+        : `Pharmacie créée. Un email d'invitation a été envoyé à ${email}.`
+    )
     setNom('')
     setEmail('')
     setTelephone('')
@@ -99,8 +103,12 @@ export default function CreerPharmacieForm({ groupements }: { groupements: Group
         </select>
       </div>
 
-      {erreur && <p className="text-red-600 text-sm mb-2">{erreur}</p>}
-      {message && <p className="text-[var(--color-accent)] text-sm mb-2">{message}</p>}
+      {erreur && <p className="text-red-600 text-sm mb-2 break-words">{erreur}</p>}
+      {message && (
+        <p className="text-[var(--color-accent)] text-sm mb-2 break-all whitespace-pre-wrap">
+          {message}
+        </p>
+      )}
 
       <button
         type="button"
