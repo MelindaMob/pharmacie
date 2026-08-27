@@ -39,7 +39,7 @@ export default function CreerPharmacieForm({ groupements }: { groupements: Group
     setLoading(false)
 
     if (data.error) {
-      setErreur(data.error)
+      setErreur(typeof data.error === 'string' ? data.error : JSON.stringify(data.error))
       return
     }
 
