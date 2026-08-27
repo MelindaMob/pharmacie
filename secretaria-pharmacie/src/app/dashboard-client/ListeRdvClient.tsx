@@ -114,7 +114,9 @@ export default function ListeRdvClient({ reservations }: { reservations: Reserva
                             locale: fr,
                           })}
                         </span>
-                        <span className="text-xs text-[var(--color-ink-soft)]">Gérer</span>
+                        <span className="text-xs text-[var(--color-ink-soft)]">
+                          Gérer / déplacer
+                        </span>
                       </a>
                     </li>
                   ))}
