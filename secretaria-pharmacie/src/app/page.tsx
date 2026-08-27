@@ -9,6 +9,8 @@ export default function LandingPage() {
   const [nomPharmacie, setNomPharmacie] = useState('')
   const [email, setEmail] = useState('')
   const [telephone, setTelephone] = useState('')
+  const [estIndependante, setEstIndependante] = useState('')
+  const [nomGroupement, setNomGroupement] = useState('')
   const [message, setMessage] = useState('')
   const [envoye, setEnvoye] = useState(false)
   const [loading, setLoading] = useState(false)
@@ -20,15 +22,20 @@ export default function LandingPage() {
       setErreur("Merci de renseigner au moins le nom et l'email")
       return
     }
+
     setLoading(true)
     setErreur('')
     const supabase = createClient()
+
     const { error } = await supabase.from('demandes_contact').insert({
       nom_pharmacie: nomPharmacie,
       email,
       telephone,
       message,
+      est_independante: estIndependante === 'independante',
+      nom_groupement: estIndependante === 'groupement' ? nomGroupement : null,
     })
+
     setLoading(false)
     if (error) {
       setErreur("Erreur lors de l'envoi, réessayez.")
@@ -39,10 +46,7 @@ export default function LandingPage() {
 
   return (
     <div className="relative flex-1 flex flex-col">
-      <div
-        aria-hidden
-        className="pointer-events-none absolute inset-0 overflow-hidden"
-      >
+      <div aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden">
         <div className="absolute -top-24 left-1/2 h-72 w-[42rem] -translate-x-1/2 rounded-full bg-[var(--color-accent)]/10 blur-3xl" />
         <div className="absolute top-40 -right-20 h-64 w-64 rounded-full bg-[var(--color-primary)]/10 blur-3xl" />
       </div>
@@ -95,6 +99,27 @@ export default function LandingPage() {
                 onChange={(e) => setTelephone(e.target.value)}
                 className="ui-input"
               />
+
+              <select
+                value={estIndependante}
+                onChange={(e) => setEstIndependante(e.target.value)}
+                className="ui-input"
+              >
+                <option value="">Situation de votre pharmacie</option>
+                <option value="independante">Pharmacie indépendante</option>
+                <option value="groupement">Membre d&apos;un groupement</option>
+              </select>
+
+              {estIndependante === 'groupement' && (
+                <input
+                  type="text"
+                  placeholder="Nom du groupement"
+                  value={nomGroupement}
+                  onChange={(e) => setNomGroupement(e.target.value)}
+                  className="ui-input"
+                />
+              )}
+
               <textarea
                 placeholder="Votre message (optionnel)"
                 value={message}

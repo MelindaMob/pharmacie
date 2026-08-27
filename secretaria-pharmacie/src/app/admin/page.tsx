@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { getUserRole } from '@/lib/auth/getRole'
 import { redirect } from 'next/navigation'
+import Link from 'next/link'
 import CreerPharmacieForm from './CreerPharmacieForm'
 import GestionGroupements from './GestionGroupements'
 import GestionPharmacies from './GestionPharmacies'
@@ -30,6 +31,11 @@ export default async function AdminPage() {
     .select('*', { count: 'exact', head: true })
     .eq('statut', 'confirme')
 
+  const { count: nbDemandesNouvelles } = await supabase
+    .from('demandes_contact')
+    .select('*', { count: 'exact', head: true })
+    .eq('statut', 'nouveau')
+
   return (
     <div className="min-h-screen">
       <div className="max-w-5xl mx-auto px-4 py-4 sm:p-6 lg:p-8">
@@ -37,9 +43,17 @@ export default async function AdminPage() {
           <Logo className="h-8 sm:h-9 w-auto" href="/admin" />
           <BoutonDeconnexion />
         </div>
-        <h1 className="font-[family-name:var(--font-display)] text-2xl text-[var(--color-ink)] mb-6">
+        <h1 className="font-[family-name:var(--font-display)] text-2xl text-[var(--color-ink)] mb-2">
           Back-office
         </h1>
+        <Link
+          href="/admin/demandes"
+          className="text-[var(--color-primary)] underline text-sm mb-6 inline-block"
+        >
+          Voir les demandes de contact
+          {nbDemandesNouvelles ? ` (${nbDemandesNouvelles} nouvelle${nbDemandesNouvelles > 1 ? 's' : ''})` : ''}{' '}
+          →
+        </Link>
 
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 mb-8">
           <div className="ui-panel p-4">
