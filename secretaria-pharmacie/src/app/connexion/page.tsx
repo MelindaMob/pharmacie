@@ -17,46 +17,38 @@ export default function ConnexionPage() {
     setLoading(true)
     setError('')
 
-    const supabase = createClient()
-    const { data, error: signInError } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    })
+    try {
+      const supabase = createClient()
+      const { data, error: signInError } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      })
 
-    if (signInError) {
+      if (signInError) {
+        setError('Email ou mot de passe incorrect')
+        return
+      }
+
+      const userId = data.user.id
+
+      const [{ data: pharmacie }, { data: admin }] = await Promise.all([
+        supabase.from('pharmacies').select('id').eq('auth_user_id', userId).maybeSingle(),
+        supabase.from('admins').select('id').eq('auth_user_id', userId).maybeSingle(),
+      ])
+
+      const destination = pharmacie
+        ? '/dashboard-pharmacie'
+        : admin
+          ? '/admin'
+          : '/dashboard-client'
+
+      router.push(destination)
+      router.refresh()
+    } catch {
+      setError('Erreur de connexion, réessayez.')
+    } finally {
       setLoading(false)
-      setError('Email ou mot de passe incorrect')
-      return
     }
-
-    const userId = data.user.id
-
-    const { data: pharmacie } = await supabase
-      .from('pharmacies')
-      .select('id')
-      .eq('auth_user_id', userId)
-      .single()
-
-    if (pharmacie) {
-      router.push('/dashboard-pharmacie')
-      router.refresh()
-      return
-    }
-
-    const { data: admin } = await supabase
-      .from('admins')
-      .select('id')
-      .eq('auth_user_id', userId)
-      .single()
-
-    if (admin) {
-      router.push('/admin')
-      router.refresh()
-      return
-    }
-
-    router.push('/dashboard-client')
-    router.refresh()
   }
 
   return (

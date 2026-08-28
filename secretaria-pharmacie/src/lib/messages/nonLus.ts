@@ -7,32 +7,24 @@ function adminClient() {
   )
 }
 
-/** Messages du client non lus par la pharmacie */
+/** Messages du client non lus par la pharmacie (requête jointe, sans charger tous les créneaux). */
 export async function compterNonLusPharmacie(pharmacieId: string): Promise<number> {
   const supabase = adminClient()
 
-  const { data: creneaux } = await supabase
-    .from('creneaux')
-    .select('id')
-    .eq('pharmacie_id', pharmacieId)
-
-  const creneauIds = (creneaux ?? []).map((c) => c.id)
-  if (creneauIds.length === 0) return 0
-
-  const { data: reservations } = await supabase
-    .from('reservations')
-    .select('id')
-    .in('creneau_id', creneauIds)
-
-  const reservationIds = (reservations ?? []).map((r) => r.id)
-  if (reservationIds.length === 0) return 0
-
-  const { count } = await supabase
+  const { count, error } = await supabase
     .from('messages')
-    .select('*', { count: 'exact', head: true })
-    .in('reservation_id', reservationIds)
+    .select('id, reservations!inner(creneaux!inner(pharmacie_id))', {
+      count: 'exact',
+      head: true,
+    })
     .eq('expediteur', 'client')
     .eq('lu', false)
+    .eq('reservations.creneaux.pharmacie_id', pharmacieId)
+
+  if (error) {
+    console.error('compterNonLusPharmacie:', error.message)
+    return 0
+  }
 
   return count ?? 0
 }
@@ -43,20 +35,17 @@ export async function compterNonLusClient(clientIds: string[]): Promise<number> 
 
   const supabase = adminClient()
 
-  const { data: reservations } = await supabase
-    .from('reservations')
-    .select('id')
-    .in('client_id', clientIds)
-
-  const reservationIds = (reservations ?? []).map((r) => r.id)
-  if (reservationIds.length === 0) return 0
-
-  const { count } = await supabase
+  const { count, error } = await supabase
     .from('messages')
-    .select('*', { count: 'exact', head: true })
-    .in('reservation_id', reservationIds)
+    .select('id, reservations!inner(client_id)', { count: 'exact', head: true })
     .eq('expediteur', 'pharmacie')
     .eq('lu', false)
+    .in('reservations.client_id', clientIds)
+
+  if (error) {
+    console.error('compterNonLusClient:', error.message)
+    return 0
+  }
 
   return count ?? 0
 }

@@ -26,32 +26,9 @@ export default async function DashboardClientPage() {
     data: { user },
   } = await supabase.auth.getUser()
 
-  // Re-rattache les RDV invité au cas où l'inscription n'a pas tout fusionné
-  if (user) {
-    const { data: fiche } = await supabase
-      .from('clients')
-      .select('id, nom, telephone, email')
-      .eq('auth_user_id', user.id)
-      .limit(1)
-      .maybeSingle()
-
-    if (fiche?.telephone) {
-      try {
-        await lierReservationsAuCompte({
-          authUserId: user.id,
-          nom: fiche.nom,
-          email: fiche.email ?? user.email,
-          telephone: fiche.telephone,
-        })
-      } catch {
-        // non bloquant pour l'affichage
-      }
-    }
-  }
-
   const { data: clients } = await supabase
     .from('clients')
-    .select('id')
+    .select('id, nom, telephone, email')
     .eq('auth_user_id', user!.id)
 
   const clientIds = (clients ?? []).map((c) => c.id)
@@ -59,12 +36,26 @@ export default async function DashboardClientPage() {
     clientIds.push(role.id)
   }
 
-  const { data: reservations } = await supabase
-    .from('reservations')
-    .select(
-      'id, statut, canal, token_gestion, creneaux(debut, pharmacies(id, nom, adresse, telephone, groupement_id))'
-    )
-    .in('client_id', clientIds)
+  // Fusion invité → compte en arrière-plan (ne bloque pas l'affichage)
+  const fiche = clients?.[0]
+  if (user && fiche?.telephone) {
+    void lierReservationsAuCompte({
+      authUserId: user.id,
+      nom: fiche.nom,
+      email: fiche.email ?? user.email,
+      telephone: fiche.telephone,
+    }).catch(() => {})
+  }
+
+  const [{ data: reservations }, nbNonLus] = await Promise.all([
+    supabase
+      .from('reservations')
+      .select(
+        'id, statut, canal, token_gestion, creneaux(debut, pharmacies(id, nom, adresse, telephone, groupement_id))'
+      )
+      .in('client_id', clientIds),
+    compterNonLusClient(clientIds),
+  ])
 
   const reservationsTriees = [...(reservations ?? [])]
     .map((r) => {
@@ -87,8 +78,6 @@ export default async function DashboardClientPage() {
       const db = b.creneaux?.debut ? new Date(b.creneaux.debut).getTime() : 0
       return db - da
     })
-
-  const nbNonLus = await compterNonLusClient(clientIds)
 
   return (
     <NavDashboardClient actif="rdv" nbNonLus={nbNonLus}>
