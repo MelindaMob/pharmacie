@@ -84,59 +84,6 @@ function choisirCreneauxProches(
 
 const NB_JOURS_RECHERCHE_ETENDUE = 3
 
-function calculerResultatRecherche(
-  creneaux: Creneau[],
-  dateSouhaitee: string,
-  heureSouhaitee: string,
-  joursFermes: Set<string>
-): ResultatRecherche {
-  const dateVoulue = debutDuJourLocal(dateSouhaitee)
-  const jourDemandeFerme = joursFermes.has(dateSouhaitee)
-  const minutesVoulues = heureSouhaitee
-    ? parseInt(heureSouhaitee.split(':')[0]) * 60 + parseInt(heureSouhaitee.split(':')[1])
-    : null
-
-  if (!jourDemandeFerme) {
-    const creneauxDuJour = creneaux.filter((c) => isSameDay(new Date(c.debut), dateVoulue))
-
-    if (creneauxDuJour.length > 0) {
-      const tries = [...creneauxDuJour].sort((a, b) => {
-        if (minutesVoulues === null) {
-          return new Date(a.debut).getTime() - new Date(b.debut).getTime()
-        }
-        const minutesA = new Date(a.debut).getHours() * 60 + new Date(a.debut).getMinutes()
-        const minutesB = new Date(b.debut).getHours() * 60 + new Date(b.debut).getMinutes()
-        return Math.abs(minutesA - minutesVoulues) - Math.abs(minutesB - minutesVoulues)
-      })
-      return { type: 'meme_jour', creneaux: tries.slice(0, 6) }
-    }
-  }
-
-  for (let i = 1; i <= NB_JOURS_RECHERCHE_ETENDUE; i++) {
-    const jourSuivant = addDays(dateVoulue, i)
-    const dateKey = format(jourSuivant, 'yyyy-MM-dd')
-    if (joursFermes.has(dateKey)) continue
-
-    const creneauxJourSuivant = creneaux
-      .filter((c) => isSameDay(new Date(c.debut), jourSuivant))
-      .sort((a, b) => new Date(a.debut).getTime() - new Date(b.debut).getTime())
-
-    if (creneauxJourSuivant.length > 0) {
-      return {
-        type: 'jour_proche',
-        creneaux: creneauxJourSuivant.slice(0, 6),
-        jourDemandeFerme,
-      }
-    }
-  }
-
-  if (jourDemandeFerme) {
-    return { type: 'ferme', creneaux: [] }
-  }
-
-  return { type: 'rien', creneaux: [] }
-}
-
 export default function CreneauxDisponibles({
   pharmacieId,
   typesRdv,
@@ -169,45 +116,24 @@ export default function CreneauxDisponibles({
     setErreur('')
     setResultatRecherche(null)
 
-    const supabase = createClient()
-    const debutJour = debutDuJourLocal(dateSouhaitee)
-    const finRecherche = addDays(debutJour, NB_JOURS_RECHERCHE_ETENDUE + 1)
-    const finRechercheStr = format(finRecherche, 'yyyy-MM-dd')
-
-    const [{ data: exceptions }, { data: slots }] = await Promise.all([
-      supabase
-        .from('horaires_exceptionnels')
-        .select('date, ferme')
-        .eq('pharmacie_id', pharmacieId)
-        .gte('date', dateSouhaitee)
-        .lte('date', finRechercheStr),
-      supabase
-        .from('creneaux')
-        .select('id, debut, fin, type_rdv_id, statut')
-        .eq('pharmacie_id', pharmacieId)
-        .eq('type_rdv_id', typeSelectionne)
-        .eq('statut', 'disponible')
-        .gte('debut', debutJour.toISOString())
-        .lt('debut', finRecherche.toISOString())
-        .order('debut', { ascending: true })
-        .limit(200),
-    ])
-
-    const joursFermes = new Set(
-      (exceptions ?? [])
-        .filter((e) => e.ferme)
-        .map((e) => String(e.date).slice(0, 10))
-    )
-
-    const creneauxFiltres = (slots ?? []).filter((c) => {
-      const dateKey = format(new Date(c.debut), 'yyyy-MM-dd')
-      return !joursFermes.has(dateKey)
+    const params = new URLSearchParams({
+      pharmacieId,
+      typeRdvId: typeSelectionne,
+      date: dateSouhaitee,
     })
+    if (heureSouhaitee) params.set('heure', heureSouhaitee)
 
-    setResultatRecherche(
-      calculerResultatRecherche(creneauxFiltres, dateSouhaitee, heureSouhaitee, joursFermes)
-    )
+    const res = await fetch(`/api/pharmacie/rechercher-creneaux?${params.toString()}`)
+    const data = await res.json()
+
     setRechercheEnCours(false)
+
+    if (!res.ok) {
+      setErreur(typeof data.error === 'string' ? data.error : 'Erreur lors de la recherche')
+      return
+    }
+
+    setResultatRecherche(data.resultat as ResultatRecherche)
   }
 
   useEffect(() => {
