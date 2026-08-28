@@ -1,7 +1,9 @@
 'use client'
 
 import { useState, useMemo } from 'react'
+import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
+import { regenererCreneauxClient } from '@/lib/creneaux/regenererCreneauxClient'
 
 type CatalogueItem = {
   id: string
@@ -31,6 +33,7 @@ export default function TypesRdvForm({
   const [loading, setLoading] = useState<string | null>(null)
   const [message, setMessage] = useState('')
   const [erreur, setErreur] = useState('')
+  const router = useRouter()
 
   const parCategorie = useMemo(() => {
     const groupes: Record<string, CatalogueItem[]> = {}
@@ -40,6 +43,17 @@ export default function TypesRdvForm({
     })
     return groupes
   }, [catalogue])
+
+  const regenererApresChangement = async (libelle: string, action: 'activé' | 'désactivé') => {
+    try {
+      const count = await regenererCreneauxClient(pharmacieId)
+      setMessage(`${libelle} ${action} — ${count} créneaux régénérés ✓`)
+      router.refresh()
+    } catch (e) {
+      const detail = e instanceof Error ? e.message : 'erreur inconnue'
+      setMessage(`${libelle} ${action}, mais créneaux non régénérés : ${detail}`)
+    }
+  }
 
   const toggleType = async (item: CatalogueItem) => {
     if (loading) return
@@ -61,7 +75,7 @@ export default function TypesRdvForm({
           delete next[item.id]
           return next
         })
-        setMessage(`${item.nom} désactivé`)
+        await regenererApresChangement(item.nom, 'désactivé')
       }
     } else {
       const { data, error } = await supabase
@@ -86,7 +100,7 @@ export default function TypesRdvForm({
             duree_minutes: data.duree_minutes,
           },
         }))
-        setMessage(`${item.nom} activé`)
+        await regenererApresChangement(item.nom, 'activé')
       }
     }
 

@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState, type MutableRefObject } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { regenererCreneauxClient } from '@/lib/creneaux/regenererCreneauxClient'
 
 const JOURS = [
   { key: 'lundi', label: 'Lundi' },
@@ -26,23 +27,6 @@ function normaliserHoraires(h: Horaires): Horaires {
 
 function horairesEgaux(a: Horaires, b: Horaires) {
   return JSON.stringify(normaliserHoraires(a)) === JSON.stringify(normaliserHoraires(b))
-}
-
-async function regenererCreneaux(pharmacieId: string) {
-  const res = await fetch('/api/generer-creneaux', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ pharmacieId }),
-  })
-  const data = await res.json()
-  if (!res.ok || !data.success) {
-    const err =
-      typeof data.error === 'string'
-        ? data.error
-        : data.error?.message ?? 'Erreur lors de la génération des créneaux'
-    throw new Error(err)
-  }
-  return data.count as number
 }
 
 export default function HorairesForm({
@@ -103,7 +87,7 @@ export default function HorairesForm({
     }
 
     try {
-      const count = await regenererCreneaux(pharmacieId)
+      const count = await regenererCreneauxClient(pharmacieId)
       setSauvegardes(normaliserHoraires(horaires))
       setMessage(`Horaires enregistrés et ${count} créneaux régénérés ✓`)
     } catch (e) {
