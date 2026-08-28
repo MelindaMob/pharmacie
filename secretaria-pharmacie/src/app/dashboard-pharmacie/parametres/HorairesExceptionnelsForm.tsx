@@ -2,7 +2,6 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { createClient } from '@/lib/supabase/client'
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
 
@@ -20,42 +19,91 @@ export default function HorairesExceptionnelsForm({
   pharmacieId: string
   exceptions: Exception[]
 }) {
-  const [date, setDate] = useState('')
+  const [dateDebut, setDateDebut] = useState('')
+  const [dateFin, setDateFin] = useState('')
   const [ferme, setFerme] = useState(true)
   const [debut, setDebut] = useState('09:00')
   const [fin, setFin] = useState('19:00')
   const [loading, setLoading] = useState(false)
   const [erreur, setErreur] = useState('')
+  const [message, setMessage] = useState('')
   const router = useRouter()
 
   const ajouter = async () => {
-    if (!date) {
-      setErreur('Choisissez une date')
+    if (!dateDebut) {
+      setErreur('Choisissez une date de début')
       return
     }
+    const finPlage = dateFin || dateDebut
+    if (dateFin && dateFin < dateDebut) {
+      setErreur('La date de fin doit être après la date de début')
+      return
+    }
+
     setLoading(true)
     setErreur('')
-    const supabase = createClient()
+    setMessage('')
 
-    const { error } = await supabase.from('horaires_exceptionnels').insert({
-      pharmacie_id: pharmacieId,
-      date,
-      ferme,
-      horaires_speciaux: ferme ? null : { debut, fin },
+    const res = await fetch('/api/pharmacie/horaires-exceptionnels', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        pharmacieId,
+        dateDebut,
+        dateFin: finPlage,
+        ferme,
+        horaires_speciaux: ferme ? null : { debut, fin },
+      }),
     })
+    const data = await res.json()
 
     setLoading(false)
-    if (error) {
-      setErreur('Erreur : cette date a peut-être déjà une exception enregistrée')
+    if (!res.ok) {
+      setErreur(typeof data.error === 'string' ? data.error : "Erreur lors de l'ajout")
       return
     }
-    setDate('')
+
+    const nbJours = data.nbJours ?? 1
+    const libelleJours = nbJours === 1 ? '1 jour enregistré' : `${nbJours} jours enregistrés`
+    const libelleCreneaux =
+      typeof data.creneauxCount === 'number'
+        ? ` — ${data.creneauxCount} créneaux régénérés ✓`
+        : ''
+    const avertissement =
+      typeof data.warning === 'string' && data.warning
+        ? ` (${data.warning})`
+        : ''
+
+    setMessage(`${libelleJours}${libelleCreneaux}${avertissement}`)
+    setDateDebut('')
+    setDateFin('')
     router.refresh()
   }
 
   const supprimer = async (id: string) => {
-    const supabase = createClient()
-    await supabase.from('horaires_exceptionnels').delete().eq('id', id)
+    setErreur('')
+    setMessage('')
+
+    const res = await fetch('/api/pharmacie/horaires-exceptionnels', {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id }),
+    })
+    const data = await res.json()
+
+    if (!res.ok) {
+      setErreur(typeof data.error === 'string' ? data.error : 'Erreur lors de la suppression')
+      return
+    }
+
+    const libelleCreneaux =
+      typeof data.creneauxCount === 'number'
+        ? `${data.creneauxCount} créneaux régénérés ✓`
+        : 'Exception retirée'
+    const avertissement =
+      typeof data.warning === 'string' && data.warning ? ` (${data.warning})` : ''
+
+    setMessage(`${libelleCreneaux}${avertissement}`)
     router.refresh()
   }
 
@@ -63,25 +111,42 @@ export default function HorairesExceptionnelsForm({
     .filter((e) => new Date(e.date) >= new Date(new Date().toDateString()))
     .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
 
+  const plageMultiple = dateFin && dateFin !== dateDebut
+
   return (
     <div className="bg-[var(--color-surface)] border border-[var(--color-line)] rounded-xl p-4 mb-6">
       <h2 className="font-medium text-[var(--color-ink)] mb-1">
         Fermetures et horaires exceptionnels
       </h2>
       <p className="text-sm text-[var(--color-ink-soft)] mb-4">
-        Indiquez un jour férié, une fermeture imprévue, ou des horaires différents pour une date
-        précise. Pensez à relancer la génération des créneaux après ajout.
+        Indiquez un jour férié, une fermeture sur plusieurs jours, ou des horaires différents
+        pour une période. Les créneaux sont mis à jour automatiquement.
       </p>
 
       <div className="flex flex-col sm:flex-wrap sm:flex-row sm:items-end gap-3 mb-4">
         <div className="w-full sm:w-auto">
-          <label className="ui-label">Date</label>
+          <label className="ui-label">Du</label>
           <input
             type="date"
-            value={date}
+            value={dateDebut}
             min={format(new Date(), 'yyyy-MM-dd')}
-            onChange={(e) => setDate(e.target.value)}
+            onChange={(e) => {
+              setDateDebut(e.target.value)
+              if (dateFin && e.target.value > dateFin) setDateFin('')
+            }}
             className="ui-input"
+          />
+        </div>
+
+        <div className="w-full sm:w-auto">
+          <label className="ui-label">Au (optionnel)</label>
+          <input
+            type="date"
+            value={dateFin}
+            min={dateDebut || format(new Date(), 'yyyy-MM-dd')}
+            onChange={(e) => setDateFin(e.target.value)}
+            className="ui-input"
+            placeholder="Même jour si vide"
           />
         </div>
 
@@ -93,7 +158,7 @@ export default function HorairesExceptionnelsForm({
             onChange={(e) => setFerme(e.target.checked)}
           />
           <label htmlFor="ferme" className="text-sm text-[var(--color-ink)]">
-            Fermé ce jour-là
+            {plageMultiple ? 'Fermé sur toute la période' : 'Fermé ce jour-là'}
           </label>
         </div>
 
@@ -126,11 +191,12 @@ export default function HorairesExceptionnelsForm({
           disabled={loading}
           className="ui-btn-primary w-full sm:w-auto"
         >
-          Ajouter
+          {loading ? 'Enregistrement…' : plageMultiple ? 'Ajouter la période' : 'Ajouter'}
         </button>
       </div>
 
       {erreur && <p className="text-red-600 text-sm mb-3">{erreur}</p>}
+      {message && <p className="text-sm text-[var(--color-accent)] mb-3">{message}</p>}
 
       <div className="space-y-1">
         {exceptionsAVenir.length === 0 && (
