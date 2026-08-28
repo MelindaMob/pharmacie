@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo, useEffect } from 'react'
+import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { format, isSameDay, addDays } from 'date-fns'
 import { fr } from 'date-fns/locale'
@@ -17,6 +17,12 @@ type Alternative = {
   prochain_creneau: string
   creneaux_proches: string[]
 }
+
+type ResultatRecherche =
+  | { type: 'meme_jour'; creneaux: Creneau[] }
+  | { type: 'jour_proche'; creneaux: Creneau[]; jourDemandeFerme: boolean }
+  | { type: 'ferme'; creneaux: [] }
+  | { type: 'rien'; creneaux: [] }
 
 function debutDuJourLocal(dateStr: string) {
   return new Date(
@@ -78,19 +84,71 @@ function choisirCreneauxProches(
 
 const NB_JOURS_RECHERCHE_ETENDUE = 3
 
+function calculerResultatRecherche(
+  creneaux: Creneau[],
+  dateSouhaitee: string,
+  heureSouhaitee: string,
+  joursFermes: Set<string>
+): ResultatRecherche {
+  const dateVoulue = debutDuJourLocal(dateSouhaitee)
+  const jourDemandeFerme = joursFermes.has(dateSouhaitee)
+  const minutesVoulues = heureSouhaitee
+    ? parseInt(heureSouhaitee.split(':')[0]) * 60 + parseInt(heureSouhaitee.split(':')[1])
+    : null
+
+  if (!jourDemandeFerme) {
+    const creneauxDuJour = creneaux.filter((c) => isSameDay(new Date(c.debut), dateVoulue))
+
+    if (creneauxDuJour.length > 0) {
+      const tries = [...creneauxDuJour].sort((a, b) => {
+        if (minutesVoulues === null) {
+          return new Date(a.debut).getTime() - new Date(b.debut).getTime()
+        }
+        const minutesA = new Date(a.debut).getHours() * 60 + new Date(a.debut).getMinutes()
+        const minutesB = new Date(b.debut).getHours() * 60 + new Date(b.debut).getMinutes()
+        return Math.abs(minutesA - minutesVoulues) - Math.abs(minutesB - minutesVoulues)
+      })
+      return { type: 'meme_jour', creneaux: tries.slice(0, 6) }
+    }
+  }
+
+  for (let i = 1; i <= NB_JOURS_RECHERCHE_ETENDUE; i++) {
+    const jourSuivant = addDays(dateVoulue, i)
+    const dateKey = format(jourSuivant, 'yyyy-MM-dd')
+    if (joursFermes.has(dateKey)) continue
+
+    const creneauxJourSuivant = creneaux
+      .filter((c) => isSameDay(new Date(c.debut), jourSuivant))
+      .sort((a, b) => new Date(a.debut).getTime() - new Date(b.debut).getTime())
+
+    if (creneauxJourSuivant.length > 0) {
+      return {
+        type: 'jour_proche',
+        creneaux: creneauxJourSuivant.slice(0, 6),
+        jourDemandeFerme,
+      }
+    }
+  }
+
+  if (jourDemandeFerme) {
+    return { type: 'ferme', creneaux: [] }
+  }
+
+  return { type: 'rien', creneaux: [] }
+}
+
 export default function CreneauxDisponibles({
   pharmacieId,
   typesRdv,
-  creneaux,
 }: {
   pharmacieId: string
   typesRdv: TypeRdv[]
-  creneaux: Creneau[]
 }) {
   const [typeSelectionne, setTypeSelectionne] = useState<string>(typesRdv[0]?.id ?? '')
   const [dateSouhaitee, setDateSouhaitee] = useState<string>(format(new Date(), 'yyyy-MM-dd'))
   const [heureSouhaitee, setHeureSouhaitee] = useState<string>('')
-  const [rechercheEffectuee, setRechercheEffectuee] = useState(false)
+  const [resultatRecherche, setResultatRecherche] = useState<ResultatRecherche | null>(null)
+  const [rechercheEnCours, setRechercheEnCours] = useState(false)
 
   const [creneauSelectionne, setCreneauSelectionne] = useState<Creneau | null>(null)
   const [prenom, setPrenom] = useState('')
@@ -102,50 +160,59 @@ export default function CreneauxDisponibles({
   const [alternatives, setAlternatives] = useState<Alternative[]>([])
   const [chargementAlternatives, setChargementAlternatives] = useState(false)
 
-  const creneauxDuType = useMemo(
-    () => creneaux.filter((c) => c.type_rdv_id === typeSelectionne),
-    [creneaux, typeSelectionne]
-  )
+  const lancerRecherche = async () => {
+    if (!typeSelectionne) return
 
-  const resultatRecherche = useMemo(() => {
-    if (!rechercheEffectuee) return null
+    setRechercheEnCours(true)
+    setCreneauSelectionne(null)
+    setAlternatives([])
+    setErreur('')
+    setResultatRecherche(null)
 
-    const dateVoulue = new Date(dateSouhaitee)
-    const minutesVoulues = heureSouhaitee
-      ? parseInt(heureSouhaitee.split(':')[0]) * 60 + parseInt(heureSouhaitee.split(':')[1])
-      : null
+    const supabase = createClient()
+    const debutJour = debutDuJourLocal(dateSouhaitee)
+    const finRecherche = addDays(debutJour, NB_JOURS_RECHERCHE_ETENDUE + 1)
+    const finRechercheStr = format(finRecherche, 'yyyy-MM-dd')
 
-    const creneauxDuJour = creneauxDuType.filter((c) => isSameDay(new Date(c.debut), dateVoulue))
+    const [{ data: exceptions }, { data: slots }] = await Promise.all([
+      supabase
+        .from('horaires_exceptionnels')
+        .select('date, ferme')
+        .eq('pharmacie_id', pharmacieId)
+        .gte('date', dateSouhaitee)
+        .lte('date', finRechercheStr),
+      supabase
+        .from('creneaux')
+        .select('id, debut, fin, type_rdv_id, statut')
+        .eq('pharmacie_id', pharmacieId)
+        .eq('type_rdv_id', typeSelectionne)
+        .eq('statut', 'disponible')
+        .gte('debut', debutJour.toISOString())
+        .lt('debut', finRecherche.toISOString())
+        .order('debut', { ascending: true })
+        .limit(200),
+    ])
 
-    if (creneauxDuJour.length > 0) {
-      const tries = [...creneauxDuJour].sort((a, b) => {
-        if (minutesVoulues === null) {
-          return new Date(a.debut).getTime() - new Date(b.debut).getTime()
-        }
-        const minutesA = new Date(a.debut).getHours() * 60 + new Date(a.debut).getMinutes()
-        const minutesB = new Date(b.debut).getHours() * 60 + new Date(b.debut).getMinutes()
-        return Math.abs(minutesA - minutesVoulues) - Math.abs(minutesB - minutesVoulues)
-      })
-      return { type: 'meme_jour' as const, creneaux: tries.slice(0, 6) }
-    }
+    const joursFermes = new Set(
+      (exceptions ?? [])
+        .filter((e) => e.ferme)
+        .map((e) => String(e.date).slice(0, 10))
+    )
 
-    for (let i = 1; i <= NB_JOURS_RECHERCHE_ETENDUE; i++) {
-      const jourSuivant = addDays(dateVoulue, i)
-      const creneauxJourSuivant = creneauxDuType
-        .filter((c) => isSameDay(new Date(c.debut), jourSuivant))
-        .sort((a, b) => new Date(a.debut).getTime() - new Date(b.debut).getTime())
+    const creneauxFiltres = (slots ?? []).filter((c) => {
+      const dateKey = format(new Date(c.debut), 'yyyy-MM-dd')
+      return !joursFermes.has(dateKey)
+    })
 
-      if (creneauxJourSuivant.length > 0) {
-        return { type: 'jour_proche' as const, creneaux: creneauxJourSuivant.slice(0, 6) }
-      }
-    }
-
-    return { type: 'rien' as const, creneaux: [] }
-  }, [rechercheEffectuee, dateSouhaitee, heureSouhaitee, creneauxDuType])
+    setResultatRecherche(
+      calculerResultatRecherche(creneauxFiltres, dateSouhaitee, heureSouhaitee, joursFermes)
+    )
+    setRechercheEnCours(false)
+  }
 
   useEffect(() => {
     setAlternatives([])
-    if (resultatRecherche?.type !== 'rien') return
+    if (resultatRecherche?.type !== 'rien' && resultatRecherche?.type !== 'ferme') return
 
     const typeNom = typesRdv.find((t) => t.id === typeSelectionne)?.nom
     if (!typeNom) return
@@ -187,7 +254,7 @@ export default function CreneauxDisponibles({
             return { ...alt, creneaux_proches: [alt.prochain_creneau] }
           }
 
-          const { data: slots } = await supabase
+          const { data: slotsAlt } = await supabase
             .from('creneaux')
             .select('debut')
             .eq('pharmacie_id', alt.pharmacie_id)
@@ -198,7 +265,7 @@ export default function CreneauxDisponibles({
             .order('debut', { ascending: true })
             .limit(100)
 
-          const creneauxProches = choisirCreneauxProches(slots ?? [], dateSouhaitee, heureSouhaitee)
+          const creneauxProches = choisirCreneauxProches(slotsAlt ?? [], dateSouhaitee, heureSouhaitee)
           const prochain = creneauxProches[0] ?? alt.prochain_creneau
 
           return {
@@ -215,11 +282,6 @@ export default function CreneauxDisponibles({
 
     chercherAlternatives()
   }, [resultatRecherche, typeSelectionne, dateSouhaitee, heureSouhaitee, typesRdv, pharmacieId])
-
-  const lancerRecherche = () => {
-    setRechercheEffectuee(true)
-    setCreneauSelectionne(null)
-  }
 
   const reserver = async () => {
     if (!creneauSelectionne || !prenom.trim() || !nom.trim() || !telephone) {
@@ -282,7 +344,7 @@ export default function CreneauxDisponibles({
           value={typeSelectionne}
           onChange={(e) => {
             setTypeSelectionne(e.target.value)
-            setRechercheEffectuee(false)
+            setResultatRecherche(null)
             setCreneauSelectionne(null)
           }}
           className={inputClass}
@@ -306,7 +368,7 @@ export default function CreneauxDisponibles({
             min={format(new Date(), 'yyyy-MM-dd')}
             onChange={(e) => {
               setDateSouhaitee(e.target.value)
-              setRechercheEffectuee(false)
+              setResultatRecherche(null)
               setCreneauSelectionne(null)
             }}
             className={`${inputClass} font-[family-name:var(--font-mono)]`}
@@ -321,7 +383,7 @@ export default function CreneauxDisponibles({
             value={heureSouhaitee}
             onChange={(e) => {
               setHeureSouhaitee(e.target.value)
-              setRechercheEffectuee(false)
+              setResultatRecherche(null)
               setCreneauSelectionne(null)
             }}
             className={`${inputClass} font-[family-name:var(--font-mono)]`}
@@ -331,10 +393,11 @@ export default function CreneauxDisponibles({
 
       <button
         type="button"
-        onClick={lancerRecherche}
-        className="w-full bg-[var(--color-primary)] hover:bg-[var(--color-primary-hover)] text-white py-2.5 rounded-lg text-sm font-medium transition-colors mb-6"
+        onClick={() => void lancerRecherche()}
+        disabled={rechercheEnCours || !typeSelectionne}
+        className="w-full bg-[var(--color-primary)] hover:bg-[var(--color-primary-hover)] text-white py-2.5 rounded-lg text-sm font-medium transition-colors mb-6 disabled:opacity-50"
       >
-        Rechercher un créneau
+        {rechercheEnCours ? 'Recherche en cours…' : 'Rechercher un créneau'}
       </button>
 
       {(resultatRecherche?.type === 'meme_jour' || resultatRecherche?.type === 'jour_proche') && (
@@ -342,8 +405,9 @@ export default function CreneauxDisponibles({
           {resultatRecherche.type === 'jour_proche' && (
             <div className="bg-[var(--color-warning-bg)] rounded-lg p-3 mb-3">
               <p className="text-sm text-[var(--color-warning-text)]">
-                Rien le {format(new Date(dateSouhaitee), 'EEEE d MMMM', { locale: fr })}. Prochain
-                jour disponible :
+                {resultatRecherche.jourDemandeFerme
+                  ? `Fermé le ${format(debutDuJourLocal(dateSouhaitee), 'EEEE d MMMM', { locale: fr })}. Prochain jour disponible :`
+                  : `Rien le ${format(debutDuJourLocal(dateSouhaitee), 'EEEE d MMMM', { locale: fr })}. Prochain jour disponible :`}
               </p>
             </div>
           )}
@@ -369,13 +433,23 @@ export default function CreneauxDisponibles({
         </div>
       )}
 
-      {resultatRecherche?.type === 'rien' && (
+      {(resultatRecherche?.type === 'ferme' || resultatRecherche?.type === 'rien') && (
         <div className="mb-6">
-          <div className="bg-[var(--color-warning-bg)] rounded-lg p-4 mb-4">
-            <p className="text-sm text-[var(--color-warning-text)]">
-              Aucune disponibilité proche de cette date pour ce motif dans cette pharmacie.
-            </p>
-          </div>
+          {resultatRecherche.type === 'ferme' && (
+            <div className="bg-[var(--color-warning-bg)] rounded-lg p-4 mb-4">
+              <p className="text-sm text-[var(--color-warning-text)]">
+                Cette pharmacie est fermée le{' '}
+                {format(debutDuJourLocal(dateSouhaitee), 'EEEE d MMMM yyyy', { locale: fr })}.
+              </p>
+            </div>
+          )}
+          {resultatRecherche.type === 'rien' && (
+            <div className="bg-[var(--color-warning-bg)] rounded-lg p-4 mb-4">
+              <p className="text-sm text-[var(--color-warning-text)]">
+                Aucune disponibilité proche de cette date pour ce motif dans cette pharmacie.
+              </p>
+            </div>
+          )}
 
           {chargementAlternatives && (
             <p className="text-sm text-[var(--color-ink-soft)] flex items-center gap-2">
@@ -426,8 +500,9 @@ export default function CreneauxDisponibles({
 
           {!chargementAlternatives && alternatives.length === 0 && (
             <p className="text-sm text-[var(--color-ink-soft)]">
-              Aucune pharmacie du groupement à proximité n&apos;a de disponibilité. Contactez
-              directement la pharmacie.
+              {resultatRecherche.type === 'ferme'
+                ? 'Aucune pharmacie du groupement à proximité n\'a de disponibilité aux alentours.'
+                : 'Aucune pharmacie du groupement à proximité n\'a de disponibilité. Contactez directement la pharmacie.'}
             </p>
           )}
         </div>

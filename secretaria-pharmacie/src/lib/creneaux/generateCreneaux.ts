@@ -67,7 +67,9 @@ export async function generateCreneauxPourPharmacie(
     .gte('date', format(debutPeriodeParis, 'yyyy-MM-dd'))
     .lte('date', format(finPeriodeParis, 'yyyy-MM-dd'))
 
-  const exceptionsParDate = new Map((exceptions ?? []).map((e) => [e.date, e]))
+  const exceptionsParDate = new Map(
+    (exceptions ?? []).map((e) => [String(e.date).slice(0, 10), e])
+  )
 
   const nouveauxCreneaux: {
     pharmacie_id: string

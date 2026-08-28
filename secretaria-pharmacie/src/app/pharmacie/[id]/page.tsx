@@ -3,6 +3,8 @@ import { notFound } from 'next/navigation'
 import CreneauxDisponibles from './CreneauxDisponibles'
 import PharmacyTicketCard from './PharmacyTicketCard'
 
+export const dynamic = 'force-dynamic'
+
 export default async function FichePharmaciePage({
   params,
 }: {
@@ -24,15 +26,6 @@ export default async function FichePharmaciePage({
     .select('id, nom, duree_minutes')
     .eq('pharmacie_id', id)
 
-  const { data: creneaux } = await supabase
-    .from('creneaux')
-    .select('id, debut, fin, type_rdv_id, statut')
-    .eq('pharmacie_id', id)
-    .eq('statut', 'disponible')
-    .gt('debut', new Date().toISOString())
-    .order('debut', { ascending: true })
-    .limit(500)
-
   return (
     <div className="min-h-screen py-8 sm:py-10 px-4">
       <div className="max-w-4xl mx-auto grid grid-cols-1 md:grid-cols-[300px_1fr] gap-5 sm:gap-6 items-start">
@@ -46,11 +39,7 @@ export default async function FichePharmaciePage({
         </div>
 
         <div className="ui-panel p-4 sm:p-6">
-          <CreneauxDisponibles
-            pharmacieId={pharmacie.id}
-            typesRdv={typesRdv ?? []}
-            creneaux={creneaux ?? []}
-          />
+          <CreneauxDisponibles pharmacieId={pharmacie.id} typesRdv={typesRdv ?? []} />
         </div>
       </div>
     </div>

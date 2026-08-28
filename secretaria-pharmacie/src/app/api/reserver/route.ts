@@ -1,4 +1,6 @@
 import { createClient } from '@supabase/supabase-js'
+import { format } from 'date-fns'
+import { toZonedTime } from 'date-fns-tz'
 import { NextRequest, NextResponse } from 'next/server'
 import { envoyerSms, normaliserNumeroFrancais } from '@/lib/sms/envoyerSms'
 import { unwrapEmbed } from '@/lib/supabase/unwrap'
@@ -26,6 +28,21 @@ export async function POST(request: NextRequest) {
   if (!creneau || creneau.statut !== 'disponible') {
     return NextResponse.json(
       { error: "Ce créneau n'est plus disponible" },
+      { status: 409 }
+    )
+  }
+
+  const dateCreneau = format(toZonedTime(new Date(creneau.debut), 'Europe/Paris'), 'yyyy-MM-dd')
+  const { data: exceptionFermeture } = await supabaseAdmin
+    .from('horaires_exceptionnels')
+    .select('ferme')
+    .eq('pharmacie_id', creneau.pharmacie_id)
+    .eq('date', dateCreneau)
+    .maybeSingle()
+
+  if (exceptionFermeture?.ferme) {
+    return NextResponse.json(
+      { error: 'Cette pharmacie est fermée à cette date' },
       { status: 409 }
     )
   }
