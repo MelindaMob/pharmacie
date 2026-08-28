@@ -3,6 +3,7 @@
 import { useMemo } from 'react'
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
+import PremierRdvSuggestions from './PremierRdvSuggestions'
 
 type Reservation = {
   id: string
@@ -36,6 +37,8 @@ const STYLES_STATUT: Record<string, string> = {
 }
 
 export default function ListeRdvClient({ reservations }: { reservations: Reservation[] }) {
+  const aucunRdvDuTout = reservations.length === 0
+
   const { groupesAVenir, historique } = useMemo(() => {
     const maintenant = new Date()
     const aVenir: Reservation[] = []
@@ -73,6 +76,10 @@ export default function ListeRdvClient({ reservations }: { reservations: Reserva
 
     return { groupesAVenir: Array.from(groupes.values()), historique }
   }, [reservations])
+
+  if (aucunRdvDuTout) {
+    return <PremierRdvSuggestions />
+  }
 
   return (
     <div className="space-y-8">
