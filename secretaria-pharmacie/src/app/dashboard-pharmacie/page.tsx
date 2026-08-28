@@ -20,7 +20,7 @@ const SELECT_DISPO = 'id, debut, fin, statut, type_rdv_id, types_rdv(nom)'
 
 /** Créneaux réservés : infos client pour le calendrier. */
 const SELECT_RESERVE =
-  'id, debut, fin, statut, type_rdv_id, types_rdv(nom), reservations(id, client_nom, client_telephone, client_email, statut)'
+  'id, debut, fin, statut, type_rdv_id, types_rdv(nom), reservations(id, client_nom, client_telephone, client_email, statut, canal)'
 
 type CreneauRow = {
   id: string
@@ -35,6 +35,7 @@ type CreneauRow = {
     client_telephone: string
     client_email: string | null
     statut: string
+    canal?: string
   }[]
 }
 

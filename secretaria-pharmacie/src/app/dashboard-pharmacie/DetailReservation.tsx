@@ -7,6 +7,12 @@ import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
 import Messagerie from '@/components/Messagerie'
 
+function labelCanal(c?: string) {
+  if (c === 'vocal') return '📞 Pris par téléphone (Paul)'
+  if (c === 'manuel') return '✍️ Ajouté manuellement'
+  return '💻 Pris en ligne'
+}
+
 export default function DetailReservation({
   reservationId,
   clientNom,
@@ -16,6 +22,7 @@ export default function DetailReservation({
   typeRdvId,
   pharmacieId,
   dateHeure,
+  canal,
   onClose,
 }: {
   reservationId: string
@@ -26,6 +33,7 @@ export default function DetailReservation({
   typeRdvId: string
   pharmacieId: string
   dateHeure: string
+  canal?: string
   onClose: () => void
 }) {
   const [modeDeplacement, setModeDeplacement] = useState(false)
@@ -123,6 +131,7 @@ export default function DetailReservation({
             <span className="text-[var(--color-ink-soft)]">Créneau :</span>{' '}
             <span className="font-[family-name:var(--font-mono)]">{dateHeure}</span>
           </p>
+          <p className="text-xs text-[var(--color-ink-soft)] pt-1">{labelCanal(canal)}</p>
         </div>
 
         {!modeDeplacement ? (

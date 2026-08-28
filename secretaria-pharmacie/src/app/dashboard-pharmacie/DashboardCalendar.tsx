@@ -24,6 +24,7 @@ type ReservationInfo = {
   client_telephone: string
   client_email: string | null
   statut: string
+  canal?: string
 }
 
 type Creneau = {
@@ -153,6 +154,12 @@ function CalendarToolbar({
   )
 }
 
+function iconeCanal(canal?: string) {
+  if (canal === 'vocal') return '📞'
+  if (canal === 'manuel') return '✍️'
+  return '💻'
+}
+
 function CalendarEventCard({
   event,
   filtre,
@@ -187,6 +194,9 @@ function CalendarEventCard({
         }}
       >
         {format(event.start, 'HH:mm')}
+        {!event.resource.estDispo && (
+          <span style={{ marginLeft: '4px' }}>{iconeCanal(event.resource.reservation?.canal)}</span>
+        )}
       </p>
       {!event.resource.estDispo && (
         <p
@@ -233,6 +243,7 @@ export default function DashboardCalendar({
     typeRdv: string
     typeRdvId: string
     dateHeure: string
+    canal?: string
   } | null>(null)
   const [creationOuverte, setCreationOuverte] = useState<{
     creneauId: string
@@ -430,6 +441,7 @@ export default function DashboardCalendar({
                   dateHeure: format(new Date(event.resource.debut), "EEEE d MMMM 'à' HH:mm", {
                     locale: fr,
                   }),
+                  canal: event.resource.reservation.canal,
                 })
               }
             }}
@@ -447,6 +459,7 @@ export default function DashboardCalendar({
           typeRdvId={reservationOuverte.typeRdvId}
           pharmacieId={pharmacieId}
           dateHeure={reservationOuverte.dateHeure}
+          canal={reservationOuverte.canal}
           onClose={() => setReservationOuverte(null)}
         />
       )}
