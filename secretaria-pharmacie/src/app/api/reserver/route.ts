@@ -2,6 +2,7 @@ import { createClient } from '@supabase/supabase-js'
 import { format } from 'date-fns'
 import { toZonedTime } from 'date-fns-tz'
 import { NextRequest, NextResponse } from 'next/server'
+import { getUserRole } from '@/lib/auth/getRole'
 import { envoyerSms, normaliserNumeroFrancais } from '@/lib/sms/envoyerSms'
 import { unwrapEmbed } from '@/lib/supabase/unwrap'
 
@@ -48,25 +49,37 @@ export async function POST(request: NextRequest) {
   }
 
   const telephoneNormalise = normaliserNumeroFrancais(telephone)
+  const role = await getUserRole()
 
-  const { data: client, error: clientError } = await supabaseAdmin
-    .from('clients')
-    .insert({
-      nom: nomTrim,
-      telephone: telephoneNormalise,
-    })
-    .select('id')
-    .single()
+  let clientId: string
 
-  if (clientError || !client) {
-    return NextResponse.json({ error: 'Erreur création client' }, { status: 500 })
+  if (role?.role === 'client') {
+    clientId = role.id
+    await supabaseAdmin
+      .from('clients')
+      .update({ nom: nomTrim, telephone: telephoneNormalise })
+      .eq('id', role.id)
+  } else {
+    const { data: client, error: clientError } = await supabaseAdmin
+      .from('clients')
+      .insert({
+        nom: nomTrim,
+        telephone: telephoneNormalise,
+      })
+      .select('id')
+      .single()
+
+    if (clientError || !client) {
+      return NextResponse.json({ error: 'Erreur création client' }, { status: 500 })
+    }
+    clientId = client.id
   }
 
   const { data: reservation, error: resaError } = await supabaseAdmin
     .from('reservations')
     .insert({
       creneau_id: creneauId,
-      client_id: client.id,
+      client_id: clientId,
       client_nom: nomTrim,
       client_telephone: telephoneNormalise,
       canal: 'web',
