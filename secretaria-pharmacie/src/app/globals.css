@@ -274,12 +274,16 @@ body {
   overflow: hidden;
   margin: 1px 4px !important;
   min-height: 20px;
+  background: transparent !important;
 }
 .rbc-events-container {
   margin-right: 0 !important;
 }
 .rbc-event-label {
-  display: none;
+  display: none !important;
+}
+.rbc-event-content {
+  height: 100%;
 }
 .rbc-off-range-bg {
   background: #FAFBFA;

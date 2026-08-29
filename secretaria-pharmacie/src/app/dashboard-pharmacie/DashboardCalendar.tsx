@@ -173,11 +173,13 @@ function CalendarEventCard({
     ? (couleurParType.get(event.resource.typeId) ?? COULEURS_STATUT.disponible)
     : COULEURS_STATUT[filtre]
 
+  const estAnnule = filtre === 'annule' && !event.resource.estDispo
+
   return (
     <div
       style={{
         borderLeft: `3px solid ${couleur}`,
-        background: `${couleur}14`,
+        background: estAnnule ? `${couleur}28` : `${couleur}14`,
         height: '100%',
         padding: '3px 6px',
         borderRadius: '4px',
@@ -191,6 +193,7 @@ function CalendarEventCard({
           fontFamily: 'var(--font-mono)',
           color: couleur,
           lineHeight: 1.2,
+          fontWeight: estAnnule ? 600 : 400,
         }}
       >
         {format(event.start, 'HH:mm')}
@@ -203,11 +206,12 @@ function CalendarEventCard({
           style={{
             fontSize: '12px',
             fontWeight: 500,
-            color: 'var(--color-ink)',
+            color: estAnnule ? couleur : 'var(--color-ink)',
             lineHeight: 1.2,
             whiteSpace: 'nowrap',
             overflow: 'hidden',
             textOverflow: 'ellipsis',
+            textDecoration: estAnnule ? 'line-through' : undefined,
           }}
         >
           {event.title}
@@ -408,6 +412,14 @@ export default function DashboardCalendar({
             startAccessor="start"
             endAccessor="end"
             components={calendarComponents}
+            eventPropGetter={() => ({
+              style: {
+                backgroundColor: 'transparent',
+                border: 'none',
+                boxShadow: 'none',
+                padding: 0,
+              },
+            })}
             views={['week', 'day', 'agenda']}
             view={view}
             date={date}
