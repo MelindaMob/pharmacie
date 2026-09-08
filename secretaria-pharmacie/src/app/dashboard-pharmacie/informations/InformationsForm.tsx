@@ -87,21 +87,25 @@ export default function InformationsForm({
 
   return (
     <div className="bg-[var(--color-surface)] border border-[var(--color-line)] rounded-xl p-4 mb-6">
-      <div className="flex flex-col sm:flex-row gap-2 mb-4">
-        <input
-          type="text"
-          value={contenu}
-          onChange={(e) => setContenu(e.target.value)}
-          placeholder="Ex : Plus de lunettes éclipse solaire en stock"
-          className="ui-input flex-1"
-        />
-        <input
-          type="date"
-          value={dateFin}
-          onChange={(e) => setDateFin(e.target.value)}
-          title="Date de fin (optionnel)"
-          className="ui-input sm:w-40"
-        />
+      <div className="flex flex-col sm:flex-row sm:items-stretch gap-2 mb-4">
+        <div className="min-w-0 flex-1">
+          <input
+            type="text"
+            value={contenu}
+            onChange={(e) => setContenu(e.target.value)}
+            placeholder="Ex : Plus de lunettes éclipse solaire en stock"
+            className="ui-input"
+          />
+        </div>
+        <div className="w-full sm:w-40 shrink-0">
+          <input
+            type="date"
+            value={dateFin}
+            onChange={(e) => setDateFin(e.target.value)}
+            title="Date de fin (optionnel)"
+            className="ui-input"
+          />
+        </div>
         <button
           type="button"
           onClick={ajouter}
