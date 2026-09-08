@@ -90,7 +90,11 @@ export default function ManquantsForm({
       return
     }
 
-    setMessage('Marqué disponible — SMS envoyé au patient ✓')
+    setMessage(
+      data.smsEnvoye
+        ? 'Marqué disponible — SMS envoyé au patient ✓'
+        : "Marqué disponible — le SMS n'a pas pu être envoyé"
+    )
     router.refresh()
   }
 
