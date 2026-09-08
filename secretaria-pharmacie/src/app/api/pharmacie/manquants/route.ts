@@ -101,22 +101,24 @@ export async function PATCH(request: NextRequest) {
 
   const { data: pharmacie } = await supabaseAdmin
     .from('pharmacies')
-    .select('nom')
+    .select('nom, adresse')
     .eq('id', pharmacieId)
     .maybeSingle()
 
   const medicament = unwrapEmbed<{ denomination: string }>(data.medicaments)
   const denomination = medicament?.denomination?.trim()
   const nomPharmacie = typeof pharmacie?.nom === 'string' ? pharmacie.nom.trim() : ''
+  const adressePharmacie = typeof pharmacie?.adresse === 'string' ? pharmacie.adresse.trim() : ''
   const produit = denomination || 'médicament'
   const lieu = nomPharmacie ? ` à la pharmacie ${nomPharmacie}` : ''
+  const adresse = adressePharmacie ? ` Adresse : ${adressePharmacie}.` : ''
   const telephone = typeof data.patient_telephone === 'string' ? data.patient_telephone.trim() : ''
 
   let smsEnvoye = false
   if (telephone) {
     const sms = await envoyerSms(
       normaliserNumeroFrancais(telephone),
-      `Bonjour, votre ${produit} est de nouveau disponible${lieu}. Vous pouvez venir le récupérer.`
+      `Bonjour, votre ${produit} est de nouveau disponible${lieu}.${adresse} Vous pouvez venir le récupérer.`
     )
     smsEnvoye = sms.success
     if (sms.success) {
