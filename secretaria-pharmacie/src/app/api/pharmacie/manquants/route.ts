@@ -1,7 +1,7 @@
 import { createClient } from '@supabase/supabase-js'
 import { getUserRole } from '@/lib/auth/getRole'
-import { envoyerSms, normaliserNumeroFrancais } from '@/lib/sms/envoyerSms'
 import { unwrapEmbed } from '@/lib/supabase/unwrap'
+import { envoyerSms, normaliserNumeroFrancais } from '@/lib/sms/envoyerSms'
 import { NextRequest, NextResponse } from 'next/server'
 
 const supabaseAdmin = createClient(
@@ -52,7 +52,7 @@ export async function POST(request: NextRequest) {
       medicament_id: medicamentId,
       quantite_manquante: quantiteManquante,
       patient_nom: patientNom,
-      patient_telephone: patientTelephone,
+      patient_telephone: normaliserNumeroFrancais(patientTelephone),
       patient_email: patientEmail,
     })
     .select('id')
@@ -65,7 +65,8 @@ export async function POST(request: NextRequest) {
   return NextResponse.json({ success: true, manquantId: data.id })
 }
 
-// PATCH : marque la fiche comme disponible et envoie un SMS Twilio au patient.
+// PATCH : marque la fiche comme disponible et envoie immédiatement le SMS
+// au patient concerné (réutilise envoyerSms, comme creer-rdv/annuler-rdv).
 export async function PATCH(request: NextRequest) {
   const role = await getUserRole()
   if (!role || (role.role !== 'pharmacie' && role.role !== 'admin')) {
@@ -86,11 +87,11 @@ export async function PATCH(request: NextRequest) {
     .update({ disponible: true })
     .eq('id', id)
     .eq('pharmacie_id', pharmacieId)
-    .eq('disponible', false)
     .select(
       `
-      id, patient_telephone,
-      medicaments (denomination)
+      id, patient_telephone, sms_envoye,
+      medicaments (denomination),
+      pharmacies (nom)
     `
     )
     .single()
@@ -99,30 +100,23 @@ export async function PATCH(request: NextRequest) {
     return NextResponse.json({ error: messageErreur(error?.code, error?.message) }, { status: 400 })
   }
 
-  const { data: pharmacie } = await supabaseAdmin
-    .from('pharmacies')
-    .select('nom, adresse')
-    .eq('id', pharmacieId)
-    .maybeSingle()
+  let smsEnvoye = data.sms_envoye as boolean
 
-  const medicament = unwrapEmbed<{ denomination: string }>(data.medicaments)
-  const denomination = medicament?.denomination?.trim()
-  const nomPharmacie = typeof pharmacie?.nom === 'string' ? pharmacie.nom.trim() : ''
-  const adressePharmacie = typeof pharmacie?.adresse === 'string' ? pharmacie.adresse.trim() : ''
-  const produit = denomination || 'médicament'
-  const lieu = nomPharmacie ? ` à la pharmacie ${nomPharmacie}` : ''
-  const adresse = adressePharmacie ? ` Adresse : ${adressePharmacie}.` : ''
-  const telephone = typeof data.patient_telephone === 'string' ? data.patient_telephone.trim() : ''
+  if (!smsEnvoye) {
+    const medicament = unwrapEmbed<{ denomination: string }>(data.medicaments)
+    const pharmacie = unwrapEmbed<{ nom: string }>(data.pharmacies)
+    const telephone = normaliserNumeroFrancais(data.patient_telephone as string)
 
-  let smsEnvoye = false
-  if (telephone) {
-    const sms = await envoyerSms(
-      normaliserNumeroFrancais(telephone),
-      `Bonjour, votre ${produit} est de nouveau disponible${lieu}.${adresse} Vous pouvez venir le récupérer.`
+    const resultat = await envoyerSms(
+      telephone,
+      `Bonjour, votre produit ${medicament?.denomination ?? ''} est disponible à la pharmacie ${
+        pharmacie?.nom ?? ''
+      }.`
     )
-    smsEnvoye = sms.success
-    if (sms.success) {
+
+    if (resultat.success) {
       await supabaseAdmin.from('manquants').update({ sms_envoye: true }).eq('id', id)
+      smsEnvoye = true
     }
   }
 
