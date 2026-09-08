@@ -5,7 +5,7 @@ export default function DashboardNav({
   nbNonLus = 0,
   children,
 }: {
-  actif: 'calendrier' | 'parametres' | 'messages'
+  actif: 'calendrier' | 'parametres' | 'messages' | 'manquants'
   nbNonLus?: number
   children: React.ReactNode
 }) {
@@ -22,6 +22,7 @@ export default function DashboardNav({
           href: '/dashboard-pharmacie/messages',
           badge: nbNonLus,
         },
+        { key: 'manquants', label: 'Manquants', href: '/dashboard-pharmacie/manquants' },
         { key: 'parametres', label: 'Paramètres', href: '/dashboard-pharmacie/parametres' },
       ]}
     >

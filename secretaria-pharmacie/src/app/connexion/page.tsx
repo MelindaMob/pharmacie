@@ -99,6 +99,14 @@ export default function ConnexionPage() {
             S&apos;inscrire
           </a>
         </p>
+
+        <p className="text-xs text-center mt-3 text-[var(--color-ink-soft)] leading-relaxed">
+          Vous avez déjà pris un rendez-vous mais n&apos;avez pas encore de compte ?{' '}
+          <a href="/inscription" className="text-[var(--color-primary)] font-medium hover:underline">
+            Inscrivez-vous avec le même numéro de téléphone
+          </a>{' '}
+          pour retrouver votre historique.
+        </p>
       </div>
     </div>
   )
