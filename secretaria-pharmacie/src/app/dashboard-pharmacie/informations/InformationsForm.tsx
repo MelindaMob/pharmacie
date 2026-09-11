@@ -6,14 +6,32 @@ import { useRouter } from 'next/navigation'
 type Info = {
   id: string
   contenu: string
+  date_debut: string | null
   date_fin: string | null
   active: boolean
   created_at: string
 }
 
+function aujourdhui(): string {
+  return new Date().toDateString()
+}
+
 function estExpiree(dateFin: string | null): boolean {
   if (!dateFin) return false
-  return new Date(dateFin) < new Date(new Date().toDateString())
+  return new Date(dateFin) < new Date(aujourdhui())
+}
+
+function pasEncoreActive(dateDebut: string | null): boolean {
+  if (!dateDebut) return false
+  return new Date(dateDebut) > new Date(aujourdhui())
+}
+
+function libellePeriode(dateDebut: string | null, dateFin: string | null): string | null {
+  const formatee = (d: string) => new Date(d).toLocaleDateString('fr-FR')
+  if (dateDebut && dateFin) return `du ${formatee(dateDebut)} au ${formatee(dateFin)}`
+  if (dateDebut) return `à partir du ${formatee(dateDebut)}`
+  if (dateFin) return `jusqu'au ${formatee(dateFin)}`
+  return null
 }
 
 export default function InformationsForm({
@@ -24,6 +42,7 @@ export default function InformationsForm({
   infos: Info[]
 }) {
   const [contenu, setContenu] = useState('')
+  const [dateDebut, setDateDebut] = useState('')
   const [dateFin, setDateFin] = useState('')
   const [loading, setLoading] = useState(false)
   const [erreur, setErreur] = useState('')
@@ -41,6 +60,7 @@ export default function InformationsForm({
       body: JSON.stringify({
         pharmacieId,
         contenu: contenu.trim(),
+        dateDebut: dateDebut || null,
         dateFin: dateFin || null,
       }),
     })
@@ -53,6 +73,7 @@ export default function InformationsForm({
     }
 
     setContenu('')
+    setDateDebut('')
     setDateFin('')
     router.refresh()
   }
@@ -100,6 +121,15 @@ export default function InformationsForm({
         <div className="w-full sm:w-40 shrink-0">
           <input
             type="date"
+            value={dateDebut}
+            onChange={(e) => setDateDebut(e.target.value)}
+            title="Date de début (optionnel)"
+            className="ui-input"
+          />
+        </div>
+        <div className="w-full sm:w-40 shrink-0">
+          <input
+            type="date"
             value={dateFin}
             onChange={(e) => setDateFin(e.target.value)}
             title="Date de fin (optionnel)"
@@ -124,6 +154,8 @@ export default function InformationsForm({
         <ul className="space-y-1">
           {infos.map((info) => {
             const expiree = estExpiree(info.date_fin)
+            const pasActive = pasEncoreActive(info.date_debut)
+            const periode = libellePeriode(info.date_debut, info.date_fin)
             return (
               <li
                 key={info.id}
@@ -132,10 +164,10 @@ export default function InformationsForm({
               >
                 <span className="text-sm text-[var(--color-ink)]">
                   {info.contenu}
-                  {info.date_fin && (
+                  {periode && (
                     <span className="ml-2 text-xs text-[var(--color-ink-soft)]">
-                      {expiree ? '(expirée le ' : "(jusqu'au "}
-                      {new Date(info.date_fin).toLocaleDateString('fr-FR')})
+                      ({expiree ? 'expirée, ' : pasActive ? 'à venir, ' : ''}
+                      {periode})
                     </span>
                   )}
                 </span>

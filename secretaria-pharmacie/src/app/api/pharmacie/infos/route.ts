@@ -12,7 +12,7 @@ function messageErreur(code: string | undefined, message: string | undefined): s
   return "Erreur lors de l'enregistrement"
 }
 
-// POST : ajoute une information libre, avec date de fin optionnelle
+// POST : ajoute une information libre, avec dates de début/fin optionnelles
 export async function POST(request: NextRequest) {
   const role = await getUserRole()
   if (!role || (role.role !== 'pharmacie' && role.role !== 'admin')) {
@@ -22,10 +22,18 @@ export async function POST(request: NextRequest) {
   const body = await request.json()
   const pharmacieId = typeof body.pharmacieId === 'string' ? body.pharmacieId : ''
   const contenu = typeof body.contenu === 'string' ? body.contenu.trim() : ''
+  const dateDebut = typeof body.dateDebut === 'string' && body.dateDebut ? body.dateDebut : null
   const dateFin = typeof body.dateFin === 'string' && body.dateFin ? body.dateFin : null
 
   if (!pharmacieId || !contenu) {
     return NextResponse.json({ error: 'Contenu requis' }, { status: 400 })
+  }
+
+  if (dateDebut && dateFin && dateDebut > dateFin) {
+    return NextResponse.json(
+      { error: 'La date de début doit être avant la date de fin' },
+      { status: 400 }
+    )
   }
 
   if (role.role === 'pharmacie' && role.id !== pharmacieId) {
@@ -34,7 +42,7 @@ export async function POST(request: NextRequest) {
 
   const { data, error } = await supabaseAdmin
     .from('infos_pharmacie')
-    .insert({ pharmacie_id: pharmacieId, contenu, date_fin: dateFin })
+    .insert({ pharmacie_id: pharmacieId, contenu, date_debut: dateDebut, date_fin: dateFin })
     .select('id')
     .single()
 

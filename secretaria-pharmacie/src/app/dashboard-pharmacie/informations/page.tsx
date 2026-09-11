@@ -20,7 +20,7 @@ export default async function InformationsPage() {
 
   const { data } = await supabaseAdmin
     .from('infos_pharmacie')
-    .select('id, contenu, date_fin, active, created_at')
+    .select('id, contenu, date_debut, date_fin, active, created_at')
     .eq('pharmacie_id', role.id)
     .order('created_at', { ascending: false })
 
@@ -32,9 +32,10 @@ export default async function InformationsPage() {
         </h1>
         <p className="text-sm text-[var(--color-ink-soft)] mb-6">
           Tout ce que vous écrivez ici, Paul peut le dire aux patients qui appellent —
-          chargé silencieusement au début de chaque appel, comme vos horaires. Mettez une
-          date de fin pour une info ponctuelle (elle disparaîtra toute seule), ou laissez-la
-          vide pour une info à désactiver vous-même le moment venu.
+          chargé silencieusement au début de chaque appel, comme vos horaires. Vous pouvez
+          fixer une date de début (l'info n'est lue par Paul qu'à partir de ce jour-là) et/ou
+          une date de fin (elle disparaît toute seule après), ou laisser les deux vides pour
+          une info à désactiver vous-même.
         </p>
 
         <InformationsForm pharmacieId={role.id} infos={data ?? []} />
