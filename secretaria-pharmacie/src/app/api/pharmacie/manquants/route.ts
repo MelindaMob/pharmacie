@@ -15,8 +15,6 @@ function messageErreur(code: string | undefined, message: string | undefined): s
 }
 
 // POST : crée une fiche manquant pour UN patient et UN produit.
-// Pas de mutualisation : si deux patients attendent le même produit,
-// ce sont deux lignes indépendantes avec chacune leur propre statut.
 export async function POST(request: NextRequest) {
   const role = await getUserRole()
   if (!role || (role.role !== 'pharmacie' && role.role !== 'admin')) {
@@ -65,23 +63,42 @@ export async function POST(request: NextRequest) {
   return NextResponse.json({ success: true, manquantId: data.id })
 }
 
-// PATCH : marque la fiche comme disponible et envoie immédiatement le SMS
-// au patient concerné (réutilise envoyerSms, comme creer-rdv/annuler-rdv).
+// PATCH : fait avancer une fiche d'un statut à l'autre.
+// champ "disponible" : envoie le SMS au patient (une seule fois).
+// champ "delivre" : clôture la fiche — elle disparaît du dashboard ET de ce
+// que Paul lit (le node n8n filtre sur delivre = false), sans envoi de SMS.
 export async function PATCH(request: NextRequest) {
   const role = await getUserRole()
   if (!role || (role.role !== 'pharmacie' && role.role !== 'admin')) {
     return NextResponse.json({ error: 'Non autorisé' }, { status: 403 })
   }
 
-  const { id, pharmacieId } = await request.json()
+  const { id, pharmacieId, champ } = await request.json()
   if (!id || typeof id !== 'string') {
     return NextResponse.json({ error: 'Identifiant manquant' }, { status: 400 })
+  }
+  if (champ !== 'disponible' && champ !== 'delivre') {
+    return NextResponse.json({ error: 'Champ invalide' }, { status: 400 })
   }
 
   if (role.role === 'pharmacie' && role.id !== pharmacieId) {
     return NextResponse.json({ error: 'Non autorisé' }, { status: 403 })
   }
 
+  if (champ === 'delivre') {
+    const { error } = await supabaseAdmin
+      .from('manquants')
+      .update({ delivre: true })
+      .eq('id', id)
+      .eq('pharmacie_id', pharmacieId)
+
+    if (error) {
+      return NextResponse.json({ error: messageErreur(error.code, error.message) }, { status: 400 })
+    }
+    return NextResponse.json({ success: true })
+  }
+
+  // champ === 'disponible'
   const { data, error } = await supabaseAdmin
     .from('manquants')
     .update({ disponible: true })

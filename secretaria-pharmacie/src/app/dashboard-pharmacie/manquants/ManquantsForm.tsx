@@ -10,6 +10,7 @@ type Manquant = {
   patient_nom: string
   patient_telephone: string
   patient_email: string | null
+  disponible: boolean
   medicament: Medicament | null
 }
 
@@ -72,7 +73,7 @@ export default function ManquantsForm({
     router.refresh()
   }
 
-  const marquerDisponible = async (id: string) => {
+  const changerStatut = async (id: string, champ: 'disponible' | 'delivre') => {
     setErreur('')
     setMessage('')
     setEnCours(id)
@@ -80,7 +81,7 @@ export default function ManquantsForm({
     const res = await fetch('/api/pharmacie/manquants', {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id, pharmacieId }),
+      body: JSON.stringify({ id, pharmacieId, champ }),
     })
     const data = await res.json()
 
@@ -91,12 +92,17 @@ export default function ManquantsForm({
     }
 
     setMessage(
-      data.smsEnvoye
-        ? 'Marqué disponible — SMS envoyé au patient ✓'
-        : "Marqué disponible — le SMS n'a pas pu être envoyé"
+      champ === 'delivre'
+        ? 'Produit remis au patient — fiche clôturée ✓'
+        : data.smsEnvoye
+          ? 'Marqué disponible — SMS envoyé au patient ✓'
+          : "Marqué disponible — mais le SMS n'a pas pu être envoyé (vérifiez le téléphone du patient)"
     )
     router.refresh()
   }
+
+  const enAttente = manquants.filter((m) => !m.disponible)
+  const aRecuperer = manquants.filter((m) => m.disponible)
 
   return (
     <div className="bg-[var(--color-surface)] border border-[var(--color-line)] rounded-xl p-4 mb-6">
@@ -166,11 +172,14 @@ export default function ManquantsForm({
       {erreur && <p className="text-red-600 text-sm mb-3">{erreur}</p>}
       {message && <p className="text-sm text-[var(--color-accent)] mb-3">{message}</p>}
 
-      <div className="space-y-1">
-        {manquants.length === 0 && (
-          <p className="text-sm text-[var(--color-ink-soft)]">Aucune fiche en cours.</p>
+      <h3 className="text-sm font-medium text-[var(--color-ink)] mt-6 mb-2">
+        En attente ({enAttente.length})
+      </h3>
+      <div className="space-y-1 mb-6">
+        {enAttente.length === 0 && (
+          <p className="text-sm text-[var(--color-ink-soft)]">Aucune fiche en attente.</p>
         )}
-        {manquants.map((m) => (
+        {enAttente.map((m) => (
           <div
             key={m.id}
             className="flex items-center justify-between gap-3 py-2 border-b border-[var(--color-line)] last:border-0"
@@ -187,11 +196,46 @@ export default function ManquantsForm({
             </div>
             <button
               type="button"
-              onClick={() => marquerDisponible(m.id)}
+              onClick={() => changerStatut(m.id, 'disponible')}
               disabled={enCours === m.id}
               className="ui-btn-primary shrink-0"
             >
               {enCours === m.id ? '…' : 'Marquer disponible'}
+            </button>
+          </div>
+        ))}
+      </div>
+
+      <h3 className="text-sm font-medium text-[var(--color-ink)] mb-2">
+        Disponible — à récupérer ({aRecuperer.length})
+      </h3>
+      <div className="space-y-1">
+        {aRecuperer.length === 0 && (
+          <p className="text-sm text-[var(--color-ink-soft)]">Rien à récupérer pour le moment.</p>
+        )}
+        {aRecuperer.map((m) => (
+          <div
+            key={m.id}
+            className="flex items-center justify-between gap-3 py-2 border-b border-[var(--color-line)] last:border-0"
+          >
+            <div>
+              <p className="text-sm font-medium text-[var(--color-ink)]">
+                {m.patient_nom} — {m.medicament?.denomination ?? 'Médicament supprimé du catalogue'}
+              </p>
+              <p className="text-xs text-[var(--color-ink-soft)]">
+                {m.patient_telephone}
+                {m.patient_email ? ` · ${m.patient_email}` : ''} · {m.quantite_manquante} boîte
+                {m.quantite_manquante > 1 ? 's' : ''}
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => changerStatut(m.id, 'delivre')}
+              disabled={enCours === m.id}
+              className="ui-btn-primary shrink-0"
+              style={{ backgroundColor: 'var(--color-accent)' }}
+            >
+              {enCours === m.id ? '…' : 'Marquer délivré'}
             </button>
           </div>
         ))}

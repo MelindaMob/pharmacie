@@ -25,12 +25,12 @@ export default async function ManquantsPage() {
     .from('manquants')
     .select(
       `
-      id, quantite_manquante, patient_nom, patient_telephone, patient_email, created_at,
+      id, quantite_manquante, patient_nom, patient_telephone, patient_email, disponible, created_at,
       medicaments (id, denomination, forme_pharmaceutique)
     `
     )
     .eq('pharmacie_id', role.id)
-    .eq('disponible', false)
+    .eq('delivre', false)
     .order('created_at', { ascending: false })
 
   const manquants = (data ?? []).map((m) => ({
@@ -39,6 +39,7 @@ export default async function ManquantsPage() {
     patient_nom: m.patient_nom as string,
     patient_telephone: m.patient_telephone as string,
     patient_email: m.patient_email as string | null,
+    disponible: m.disponible as boolean,
     medicament: unwrapEmbed<MedicamentEmbed>(m.medicaments),
   }))
 
