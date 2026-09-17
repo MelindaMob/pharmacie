@@ -2,6 +2,7 @@ import { createClient } from '@supabase/supabase-js'
 import { NextRequest, NextResponse } from 'next/server'
 import { envoyerSms, normaliserNumeroFrancais } from '@/lib/sms/envoyerSms'
 import { unwrapEmbed } from '@/lib/supabase/unwrap'
+import { creneauADeLaPlace, recalculerStatutCreneau } from '@/lib/creneaux/recalculerStatutCreneau'
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -64,7 +65,7 @@ export async function POST(request: NextRequest) {
 
   const { data: nouveauCreneau } = await supabaseAdmin
     .from('creneaux')
-    .select('id, debut, statut, pharmacie_id, type_rdv_id')
+    .select('id, debut, pharmacie_id, type_rdv_id')
     .eq('id', nouveauCreneauId)
     .single()
 
@@ -76,7 +77,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Le motif du créneau ne correspond pas' }, { status: 400 })
   }
 
-  if (nouveauCreneau.statut !== 'disponible') {
+  if (!(await creneauADeLaPlace(nouveauCreneauId))) {
     return NextResponse.json({ error: "Le nouveau créneau n'est plus disponible" }, { status: 409 })
   }
 
@@ -84,29 +85,15 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Le nouveau créneau est déjà passé' }, { status: 400 })
   }
 
-  await supabaseAdmin
-    .from('creneaux')
-    .update({ statut: 'disponible' })
-    .eq('id', reservation.creneau_id)
-
-  const { error: reserveError } = await supabaseAdmin
-    .from('creneaux')
-    .update({ statut: 'reserve' })
-    .eq('id', nouveauCreneauId)
-    .eq('statut', 'disponible')
-
-  if (reserveError) {
-    await supabaseAdmin
-      .from('creneaux')
-      .update({ statut: 'reserve' })
-      .eq('id', reservation.creneau_id)
-    return NextResponse.json({ error: "Le nouveau créneau n'est plus disponible" }, { status: 409 })
-  }
+  const ancienCreneauId = reservation.creneau_id
 
   await supabaseAdmin
     .from('reservations')
     .update({ creneau_id: nouveauCreneauId })
     .eq('id', reservation.id)
+
+  await recalculerStatutCreneau(ancienCreneauId)
+  await recalculerStatutCreneau(nouveauCreneauId)
 
   const dateFormatee = new Intl.DateTimeFormat('fr-FR', {
     weekday: 'long',

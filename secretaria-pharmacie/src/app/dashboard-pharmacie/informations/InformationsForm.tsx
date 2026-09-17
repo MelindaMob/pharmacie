@@ -8,7 +8,6 @@ type Info = {
   contenu: string
   date_debut: string | null
   date_fin: string | null
-  active: boolean
   created_at: string
 }
 
@@ -75,20 +74,6 @@ export default function InformationsForm({
     setContenu('')
     setDateDebut('')
     setDateFin('')
-    router.refresh()
-  }
-
-  const basculerActif = async (id: string, active: boolean) => {
-    setErreur('')
-    const res = await fetch('/api/pharmacie/infos', {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id, pharmacieId, active: !active }),
-    })
-    if (!res.ok) {
-      setErreur('Erreur lors de la mise à jour')
-      return
-    }
     router.refresh()
   }
 
@@ -160,7 +145,7 @@ export default function InformationsForm({
               <li
                 key={info.id}
                 className="flex items-center justify-between gap-3 py-1.5 border-b border-[var(--color-line)] last:border-0"
-                style={{ opacity: info.active && !expiree ? 1 : 0.5 }}
+                style={{ opacity: expiree ? 0.5 : 1 }}
               >
                 <span className="text-sm text-[var(--color-ink)]">
                   {info.contenu}
@@ -171,22 +156,13 @@ export default function InformationsForm({
                     </span>
                   )}
                 </span>
-                <div className="flex items-center gap-3 text-xs shrink-0">
-                  <button
-                    type="button"
-                    onClick={() => basculerActif(info.id, info.active)}
-                    className="underline text-[var(--color-accent)]"
-                  >
-                    {info.active ? 'Désactiver' : 'Réactiver'}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => supprimer(info.id)}
-                    className="underline text-red-600"
-                  >
-                    Supprimer
-                  </button>
-                </div>
+                <button
+                  type="button"
+                  onClick={() => supprimer(info.id)}
+                  className="underline text-red-600 text-xs shrink-0"
+                >
+                  Supprimer
+                </button>
               </li>
             )
           })}

@@ -31,11 +31,9 @@ export default async function InformationsPage() {
           Infos supplémentaires
         </h1>
         <p className="text-sm text-[var(--color-ink-soft)] mb-6">
-          Tout ce que vous écrivez ici, Paul peut le dire aux patients qui appellent —
-          chargé silencieusement au début de chaque appel, comme vos horaires. Vous pouvez
-          fixer une date de début (l'info n'est lue par Paul qu'à partir de ce jour-là) et/ou
-          une date de fin (elle disparaît toute seule après), ou laisser les deux vides pour
-          une info à désactiver vous-même.
+          {
+            "Tout ce que vous écrivez ici, Paul peut le dire aux patients qui appellent — chargé silencieusement au début de chaque appel, comme vos horaires. Vous pouvez fixer une date de début (l'info n'est lue par Paul qu'à partir de ce jour-là) et/ou une date de fin (elle disparaît toute seule après), ou laisser les deux vides pour une info à supprimer vous-même le moment venu."
+          }
         </p>
 
         <InformationsForm pharmacieId={role.id} infos={data ?? []} />

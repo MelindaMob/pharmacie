@@ -29,7 +29,7 @@ export default async function ParametresPharmaciePage() {
 
   const { data: typesActifsData } = await supabase
     .from('types_rdv')
-    .select('id, catalogue_id, duree_minutes')
+    .select('id, catalogue_id, duree_minutes, capacite')
     .eq('pharmacie_id', role.id)
     .not('catalogue_id', 'is', null)
 
@@ -59,6 +59,7 @@ export default async function ParametresPharmaciePage() {
             id: string
             catalogue_id: string
             duree_minutes: number
+            capacite: number
           }[]}
         />
         <DelaiAnnulationForm

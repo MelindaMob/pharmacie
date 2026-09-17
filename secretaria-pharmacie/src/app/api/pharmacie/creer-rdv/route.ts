@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getUserRole } from '@/lib/auth/getRole'
 import { envoyerSms, normaliserNumeroFrancais } from '@/lib/sms/envoyerSms'
 import { unwrapEmbed } from '@/lib/supabase/unwrap'
+import { creneauADeLaPlace, recalculerStatutCreneau } from '@/lib/creneaux/recalculerStatutCreneau'
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -40,7 +41,7 @@ export async function POST(request: NextRequest) {
 
   const { data: creneau } = await supabaseAdmin
     .from('creneaux')
-    .select('id, debut, statut, pharmacie_id, pharmacies(nom)')
+    .select('id, debut, type_rdv_id, pharmacie_id, pharmacies(nom)')
     .eq('id', creneauId)
     .single()
 
@@ -48,18 +49,10 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Non autorisé' }, { status: 403 })
   }
 
-  if (creneau.statut !== 'disponible') {
+  // Capacité plutôt que statut binaire : plusieurs réservations actives
+  // peuvent coexister sur ce créneau selon la capacité de son type de RDV.
+  if (!(await creneauADeLaPlace(creneauId))) {
     return NextResponse.json({ error: "Ce créneau n'est plus disponible" }, { status: 409 })
-  }
-
-  const { data: reservationExistante } = await supabaseAdmin
-    .from('reservations')
-    .select('id, statut')
-    .eq('creneau_id', creneauId)
-    .maybeSingle()
-
-  if (reservationExistante && reservationExistante.statut !== 'annule') {
-    return NextResponse.json({ error: 'Ce créneau est déjà réservé' }, { status: 409 })
   }
 
   const telephoneNormalise = normaliserNumeroFrancais(telephone)
@@ -78,10 +71,6 @@ export async function POST(request: NextRequest) {
   if (clientError || !client) {
     console.error('Erreur création client:', clientError)
     return NextResponse.json({ error: 'Erreur création client' }, { status: 500 })
-  }
-
-  if (reservationExistante?.statut === 'annule') {
-    await supabaseAdmin.from('reservations').delete().eq('id', reservationExistante.id)
   }
 
   const { data: reservation, error: resaError } = await supabaseAdmin
@@ -107,16 +96,7 @@ export async function POST(request: NextRequest) {
     )
   }
 
-  const { error: updateError } = await supabaseAdmin
-    .from('creneaux')
-    .update({ statut: 'reserve' })
-    .eq('id', creneauId)
-    .eq('statut', 'disponible')
-
-  if (updateError) {
-    console.error('Erreur mise à jour créneau:', updateError)
-    return NextResponse.json({ error: "Ce créneau vient d'être pris" }, { status: 409 })
-  }
+  await recalculerStatutCreneau(creneauId)
 
   const pharmacie = unwrapEmbed<{ nom: string }>(creneau.pharmacies)
   const dateFormatee = new Intl.DateTimeFormat('fr-FR', {

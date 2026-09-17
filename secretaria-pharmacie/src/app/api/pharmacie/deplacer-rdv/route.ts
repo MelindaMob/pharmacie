@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js'
 import { NextRequest, NextResponse } from 'next/server'
 import { getUserRole } from '@/lib/auth/getRole'
+import { creneauADeLaPlace, recalculerStatutCreneau } from '@/lib/creneaux/recalculerStatutCreneau'
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -21,7 +22,7 @@ export async function POST(request: NextRequest) {
 
   const { data: nouveauCreneau } = await supabaseAdmin
     .from('creneaux')
-    .select('id, statut, pharmacie_id')
+    .select('id, pharmacie_id')
     .eq('id', nouveauCreneauId)
     .single()
 
@@ -29,7 +30,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Non autorisé' }, { status: 403 })
   }
 
-  if (nouveauCreneau.statut !== 'disponible') {
+  if (!(await creneauADeLaPlace(nouveauCreneauId))) {
     return NextResponse.json({ error: "Le nouveau créneau n'est plus disponible" }, { status: 409 })
   }
 
@@ -53,29 +54,15 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Non autorisé' }, { status: 403 })
   }
 
-  await supabaseAdmin
-    .from('creneaux')
-    .update({ statut: 'disponible' })
-    .eq('id', reservation.creneau_id)
-
-  const { error: reserveError } = await supabaseAdmin
-    .from('creneaux')
-    .update({ statut: 'reserve' })
-    .eq('id', nouveauCreneauId)
-    .eq('statut', 'disponible')
-
-  if (reserveError) {
-    await supabaseAdmin
-      .from('creneaux')
-      .update({ statut: 'reserve' })
-      .eq('id', reservation.creneau_id)
-    return NextResponse.json({ error: "Le nouveau créneau n'est plus disponible" }, { status: 409 })
-  }
+  const ancienCreneauId = reservation.creneau_id
 
   await supabaseAdmin
     .from('reservations')
     .update({ creneau_id: nouveauCreneauId })
     .eq('id', reservationId)
+
+  await recalculerStatutCreneau(ancienCreneauId)
+  await recalculerStatutCreneau(nouveauCreneauId)
 
   return NextResponse.json({ success: true })
 }

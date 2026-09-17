@@ -53,37 +53,6 @@ export async function POST(request: NextRequest) {
   return NextResponse.json({ success: true, infoId: data.id })
 }
 
-// PATCH : bascule active/inactive
-export async function PATCH(request: NextRequest) {
-  const role = await getUserRole()
-  if (!role || (role.role !== 'pharmacie' && role.role !== 'admin')) {
-    return NextResponse.json({ error: 'Non autorisé' }, { status: 403 })
-  }
-
-  const { id, pharmacieId, active } = await request.json()
-  if (!id || typeof id !== 'string' || typeof active !== 'boolean') {
-    return NextResponse.json({ error: 'Champs manquants' }, { status: 400 })
-  }
-
-  if (role.role === 'pharmacie' && role.id !== pharmacieId) {
-    return NextResponse.json({ error: 'Non autorisé' }, { status: 403 })
-  }
-
-  const { data, error } = await supabaseAdmin
-    .from('infos_pharmacie')
-    .update({ active })
-    .eq('id', id)
-    .eq('pharmacie_id', pharmacieId)
-    .select('id')
-    .single()
-
-  if (error || !data) {
-    return NextResponse.json({ error: messageErreur(error?.code, error?.message) }, { status: 400 })
-  }
-
-  return NextResponse.json({ success: true })
-}
-
 // DELETE : supprime une information
 export async function DELETE(request: NextRequest) {
   const role = await getUserRole()

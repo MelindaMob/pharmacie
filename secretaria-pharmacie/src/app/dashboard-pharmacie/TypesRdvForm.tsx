@@ -16,6 +16,7 @@ type TypeRdvActif = {
   id: string // id dans types_rdv (pas catalogue_id)
   catalogue_id: string
   duree_minutes: number
+  capacite: number
 }
 
 export default function TypesRdvForm({
@@ -86,7 +87,7 @@ export default function TypesRdvForm({
           nom: item.nom,
           duree_minutes: item.duree_minutes_defaut,
         })
-        .select('id, catalogue_id, duree_minutes')
+        .select('id, catalogue_id, duree_minutes, capacite')
         .single()
 
       if (error || !data) {
@@ -98,6 +99,7 @@ export default function TypesRdvForm({
             id: data.id,
             catalogue_id: data.catalogue_id ?? item.id,
             duree_minutes: data.duree_minutes,
+            capacite: data.capacite ?? 1,
           },
         }))
         await regenererApresChangement(item.nom, 'activé')
@@ -127,12 +129,35 @@ export default function TypesRdvForm({
     }
   }
 
+  const modifierCapacite = async (item: CatalogueItem, capacite: number) => {
+    const actif = actifs[item.id]
+    if (!actif) return
+
+    const capaciteValide = Math.max(1, capacite)
+
+    setActifs((prev) => ({
+      ...prev,
+      [item.id]: { ...actif, capacite: capaciteValide },
+    }))
+
+    const supabase = createClient()
+    const { error } = await supabase
+      .from('types_rdv')
+      .update({ capacite: capaciteValide })
+      .eq('id', actif.id)
+
+    if (error) {
+      setErreur(`Impossible de modifier la capacité : ${error.message}`)
+    }
+  }
+
   return (
     <div className="bg-white rounded-lg border p-4 mb-6">
       <h2 className="font-semibold mb-1">Types de rendez-vous proposés</h2>
       <p className="text-sm text-gray-500 mb-4">
-        Cochez les prestations que votre pharmacie propose. Vous pouvez ajuster la durée de chaque
-        créneau.
+        Cochez les prestations que votre pharmacie propose. Vous pouvez ajuster la durée de
+        chaque créneau, et le nombre de rendez-vous acceptés en même temps sur un même créneau
+        (par exemple 3 vaccinations en parallèle, contre 1 seul dépistage).
       </p>
 
       <div className="space-y-5 max-h-[500px] overflow-y-auto pr-2">
@@ -156,20 +181,35 @@ export default function TypesRdvForm({
                     <span className="flex-1 text-sm">{item.nom}</span>
                     {actif && (
                       <div
-                        className="flex items-center gap-1"
+                        className="flex items-center gap-3"
                         onClick={(e) => e.preventDefault()}
                       >
-                        <input
-                          type="number"
-                          min={5}
-                          step={5}
-                          value={actif.duree_minutes}
-                          onChange={(e) =>
-                            modifierDuree(item, parseInt(e.target.value) || 15)
-                          }
-                          className="w-16 border rounded px-2 py-1 text-sm"
-                        />
-                        <span className="text-xs text-gray-500">min</span>
+                        <div className="flex items-center gap-1">
+                          <input
+                            type="number"
+                            min={5}
+                            step={5}
+                            value={actif.duree_minutes}
+                            onChange={(e) =>
+                              modifierDuree(item, parseInt(e.target.value) || 15)
+                            }
+                            className="w-16 border rounded px-2 py-1 text-sm"
+                          />
+                          <span className="text-xs text-gray-500">min</span>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <input
+                            type="number"
+                            min={1}
+                            step={1}
+                            value={actif.capacite}
+                            onChange={(e) =>
+                              modifierCapacite(item, parseInt(e.target.value) || 1)
+                            }
+                            className="w-14 border rounded px-2 py-1 text-sm"
+                          />
+                          <span className="text-xs text-gray-500">en même temps</span>
+                        </div>
                       </div>
                     )}
                   </label>

@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js'
 import { NextRequest, NextResponse } from 'next/server'
 import { getUserRole } from '@/lib/auth/getRole'
+import { recalculerStatutCreneau } from '@/lib/creneaux/recalculerStatutCreneau'
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -43,10 +44,7 @@ export async function POST(request: NextRequest) {
     .update({ statut: 'annule' })
     .eq('id', reservationId)
 
-  await supabaseAdmin
-    .from('creneaux')
-    .update({ statut: 'disponible' })
-    .eq('id', reservation.creneau_id)
+  await recalculerStatutCreneau(reservation.creneau_id)
 
   return NextResponse.json({ success: true })
 }
