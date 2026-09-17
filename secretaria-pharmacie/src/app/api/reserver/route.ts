@@ -5,6 +5,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getUserRole } from '@/lib/auth/getRole'
 import { envoyerSms, normaliserNumeroFrancais } from '@/lib/sms/envoyerSms'
 import { unwrapEmbed } from '@/lib/supabase/unwrap'
+import { creneauADeLaPlace, recalculerStatutCreneau } from '@/lib/creneaux/recalculerStatutCreneau'
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -22,15 +23,18 @@ export async function POST(request: NextRequest) {
 
   const { data: creneau } = await supabaseAdmin
     .from('creneaux')
-    .select('id, debut, statut, pharmacie_id, pharmacies(nom, adresse)')
+    .select('id, debut, pharmacie_id, pharmacies(nom, adresse)')
     .eq('id', creneauId)
     .single()
 
-  if (!creneau || creneau.statut !== 'disponible') {
-    return NextResponse.json(
-      { error: "Ce créneau n'est plus disponible" },
-      { status: 409 }
-    )
+  if (!creneau) {
+    return NextResponse.json({ error: "Ce créneau n'est plus disponible" }, { status: 409 })
+  }
+
+  // Capacité plutôt que statut binaire : plusieurs réservations actives
+  // peuvent coexister sur ce créneau selon la capacité de son type de RDV.
+  if (!(await creneauADeLaPlace(creneauId))) {
+    return NextResponse.json({ error: "Ce créneau n'est plus disponible" }, { status: 409 })
   }
 
   const dateCreneau = format(toZonedTime(new Date(creneau.debut), 'Europe/Paris'), 'yyyy-MM-dd')
@@ -92,15 +96,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Erreur création réservation' }, { status: 500 })
   }
 
-  const { error: updateError } = await supabaseAdmin
-    .from('creneaux')
-    .update({ statut: 'reserve' })
-    .eq('id', creneauId)
-    .eq('statut', 'disponible')
-
-  if (updateError) {
-    return NextResponse.json({ error: "Ce créneau vient d'être pris" }, { status: 409 })
-  }
+  await recalculerStatutCreneau(creneauId)
 
   const pharmacie = unwrapEmbed<{ nom: string; adresse: string }>(creneau.pharmacies)
   const dateFormatee = new Intl.DateTimeFormat('fr-FR', {

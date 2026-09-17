@@ -221,11 +221,11 @@ function CalendarEventCard({
   )
 }
 
-function reservationPourFiltre(creneau: Creneau, filtre: FiltreStatut) {
-  if (filtre === 'annule') {
-    return creneau.reservations?.find((r) => r.statut === 'annule')
-  }
-  return creneau.reservations?.find((r) => r.statut === filtre)
+function reservationsPourFiltre(creneau: Creneau, filtre: FiltreStatut): ReservationInfo[] {
+  const resas = creneau.reservations ?? []
+  if (filtre === 'annule') return resas.filter((r) => r.statut === 'annule')
+  if (filtre === 'no_show') return resas.filter((r) => r.statut === 'no_show')
+  return resas.filter((r) => r.statut === 'confirme')
 }
 
 export default function DashboardCalendar({
@@ -299,17 +299,9 @@ export default function DashboardCalendar({
       return creneaux.filter((c) => c.reservations?.some((r) => r.statut === 'annule'))
     }
     if (filtre === 'no_show') {
-      return creneaux.filter(
-        (c) => c.statut === 'reserve' && c.reservations?.some((r) => r.statut === 'no_show')
-      )
+      return creneaux.filter((c) => c.reservations?.some((r) => r.statut === 'no_show'))
     }
-    // Confirmés : créneau réservé, même si la résa jointe est incomplète
-    return creneaux.filter((c) => {
-      if (c.statut !== 'reserve') return false
-      const resas = c.reservations ?? []
-      if (resas.length === 0) return true
-      return resas.some((r) => r.statut === 'confirme')
-    })
+    return creneaux.filter((c) => c.reservations?.some((r) => r.statut === 'confirme'))
   }, [creneaux, filtre])
 
   const events: CalendarEvent[] = useMemo(() => {
@@ -346,11 +338,13 @@ export default function DashboardCalendar({
       })
     }
 
-    return creneauxFiltres.map((c) => {
-      const reservation = reservationPourFiltre(c, filtre)
-      return {
-        id: c.id,
-        title: reservation?.client_nom ?? 'Réservé',
+    return creneauxFiltres.flatMap((c) => {
+      const resas = reservationsPourFiltre(c, filtre)
+      if (resas.length === 0) return []
+
+      return resas.map((reservation) => ({
+        id: reservation.id,
+        title: reservation.client_nom || 'Réservé',
         start: new Date(c.debut),
         end: new Date(c.fin),
         resource: {
@@ -360,7 +354,7 @@ export default function DashboardCalendar({
           typeNom: c.types_rdv?.nom ?? '',
           debut: c.debut,
         },
-      }
+      }))
     })
   }, [creneauxFiltres, filtre])
 

@@ -15,12 +15,23 @@ const supabaseAdmin = createAdminClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 )
 
-/** Créneaux libres : pas de jointure reservations (volume élevé). */
+/** Créneaux encore ouverts (capacité non atteinte) — pour le filtre Disponibles. */
 const SELECT_DISPO = 'id, debut, fin, statut, type_rdv_id, types_rdv(nom)'
 
-/** Créneaux réservés : infos client pour le calendrier. */
-const SELECT_RESERVE =
-  'id, debut, fin, statut, type_rdv_id, types_rdv(nom), reservations(id, client_nom, client_telephone, client_email, statut, canal)'
+/** Toutes les réservations de la période, y compris sur un créneau encore disponible. */
+const SELECT_RESERVATIONS = `
+  id, client_nom, client_telephone, client_email, statut, canal, creneau_id,
+  creneaux!inner(id, debut, fin, statut, type_rdv_id, types_rdv(nom))
+`
+
+type ReservationInfo = {
+  id: string
+  client_nom: string
+  client_telephone: string
+  client_email: string | null
+  statut: string
+  canal?: string
+}
 
 type CreneauRow = {
   id: string
@@ -29,14 +40,7 @@ type CreneauRow = {
   statut: string
   type_rdv_id: string
   types_rdv: { nom: string } | null
-  reservations: {
-    id: string
-    client_nom: string
-    client_telephone: string
-    client_email: string | null
-    statut: string
-    canal?: string
-  }[]
+  reservations: ReservationInfo[]
 }
 
 export default async function DashboardPharmaciePage() {
@@ -48,7 +52,7 @@ export default async function DashboardPharmaciePage() {
   const debutIso = debutPeriode.toISOString()
   const finIso = finPeriode.toISOString()
 
-  const [{ data: creneauxDispo }, { data: creneauxReserves }, nbNonLus] = await Promise.all([
+  const [{ data: creneauxDispo }, { data: reservationsPeriode }, nbNonLus] = await Promise.all([
     supabaseAdmin
       .from('creneaux')
       .select(SELECT_DISPO)
@@ -59,14 +63,12 @@ export default async function DashboardPharmaciePage() {
       .order('debut', { ascending: true })
       .limit(5000),
     supabaseAdmin
-      .from('creneaux')
-      .select(SELECT_RESERVE)
-      .eq('pharmacie_id', role.id)
-      .eq('statut', 'reserve')
-      .gte('debut', debutIso)
-      .lte('debut', finIso)
-      .order('debut', { ascending: true })
-      .limit(500),
+      .from('reservations')
+      .select(SELECT_RESERVATIONS)
+      .eq('creneaux.pharmacie_id', role.id)
+      .gte('creneaux.debut', debutIso)
+      .lte('creneaux.debut', finIso)
+      .limit(2000),
     compterNonLusPharmacie(role.id),
   ])
 
@@ -83,21 +85,41 @@ export default async function DashboardPharmaciePage() {
       reservations: [],
     })
   }
-  for (const c of creneauxReserves ?? []) {
-    const resas = c.reservations
-    const listeResas = Array.isArray(resas)
-      ? resas
-      : resas
-        ? [resas]
-        : []
-    creneauxParId.set(c.id, {
-      id: c.id,
-      debut: c.debut,
-      fin: c.fin,
-      statut: c.statut,
-      type_rdv_id: c.type_rdv_id,
-      types_rdv: unwrapEmbed<{ nom: string }>(c.types_rdv),
-      reservations: listeResas,
+
+  for (const r of reservationsPeriode ?? []) {
+    const creneau = unwrapEmbed<{
+      id: string
+      debut: string
+      fin: string
+      statut: string
+      type_rdv_id: string
+      types_rdv: unknown
+    }>(r.creneaux)
+    if (!creneau) continue
+
+    const resa: ReservationInfo = {
+      id: r.id as string,
+      client_nom: r.client_nom as string,
+      client_telephone: r.client_telephone as string,
+      client_email: (r.client_email as string | null) ?? null,
+      statut: r.statut as string,
+      canal: r.canal as string | undefined,
+    }
+
+    const existant = creneauxParId.get(creneau.id)
+    if (existant) {
+      existant.reservations.push(resa)
+      continue
+    }
+
+    creneauxParId.set(creneau.id, {
+      id: creneau.id,
+      debut: creneau.debut,
+      fin: creneau.fin,
+      statut: creneau.statut,
+      type_rdv_id: creneau.type_rdv_id,
+      types_rdv: unwrapEmbed<{ nom: string }>(creneau.types_rdv),
+      reservations: [resa],
     })
   }
 
