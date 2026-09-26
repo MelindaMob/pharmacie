@@ -12,24 +12,26 @@ type CatalogueItem = {
   duree_minutes_defaut: number
 }
 
-type TypeRdvActif = {
+type TypeRdvLigne = {
   id: string // id dans types_rdv (pas catalogue_id)
   catalogue_id: string
   duree_minutes: number
   capacite: number
+  actif: boolean
 }
 
 export default function TypesRdvForm({
   pharmacieId,
   catalogue,
-  typesActifs,
+  typesRdv,
 }: {
   pharmacieId: string
   catalogue: CatalogueItem[]
-  typesActifs: TypeRdvActif[]
+  /** Toutes les lignes types_rdv de la pharmacie, actives ou non (on ne supprime plus jamais une ligne : on la désactive, pour ne pas casser les créneaux déjà générés). */
+  typesRdv: TypeRdvLigne[]
 }) {
-  const [actifs, setActifs] = useState<Record<string, TypeRdvActif>>(() =>
-    Object.fromEntries(typesActifs.map((t) => [t.catalogue_id, t]))
+  const [lignes, setLignes] = useState<Record<string, TypeRdvLigne>>(() =>
+    Object.fromEntries(typesRdv.map((t) => [t.catalogue_id, t]))
   )
   const [loading, setLoading] = useState<string | null>(null)
   const [message, setMessage] = useState('')
@@ -63,20 +65,47 @@ export default function TypesRdvForm({
     setMessage('')
     setErreur('')
     const supabase = createClient()
-    const dejaActif = actifs[item.id]
+    const ligne = lignes[item.id]
+    const dejaActif = !!ligne?.actif
 
     if (dejaActif) {
-      const { error } = await supabase.from('types_rdv').delete().eq('id', dejaActif.id)
+      // On ne supprime jamais la ligne : des créneaux existants la référencent
+      // (contrainte creneaux_type_rdv_id_fkey). On la désactive à la place.
+      const { error } = await supabase
+        .from('types_rdv')
+        .update({ actif: false })
+        .eq('id', ligne.id)
 
       if (error) {
         setErreur(`Impossible de désactiver : ${error.message}`)
       } else {
-        setActifs((prev) => {
-          const next = { ...prev }
-          delete next[item.id]
-          return next
-        })
+        setLignes((prev) => ({ ...prev, [item.id]: { ...ligne, actif: false } }))
         await regenererApresChangement(item.nom, 'désactivé')
+      }
+    } else if (ligne) {
+      // Une ligne inactive existe déjà pour ce catalogue_id (désactivée
+      // précédemment) : on la réactive au lieu d'en recréer une.
+      const { data, error } = await supabase
+        .from('types_rdv')
+        .update({ actif: true, duree_minutes: item.duree_minutes_defaut })
+        .eq('id', ligne.id)
+        .select('id, catalogue_id, duree_minutes, capacite, actif')
+        .single()
+
+      if (error || !data) {
+        setErreur(`Impossible d'activer : ${error?.message ?? 'réponse vide'}`)
+      } else {
+        setLignes((prev) => ({
+          ...prev,
+          [item.id]: {
+            id: data.id,
+            catalogue_id: data.catalogue_id ?? item.id,
+            duree_minutes: data.duree_minutes,
+            capacite: data.capacite ?? 1,
+            actif: true,
+          },
+        }))
+        await regenererApresChangement(item.nom, 'activé')
       }
     } else {
       const { data, error } = await supabase
@@ -87,19 +116,20 @@ export default function TypesRdvForm({
           nom: item.nom,
           duree_minutes: item.duree_minutes_defaut,
         })
-        .select('id, catalogue_id, duree_minutes, capacite')
+        .select('id, catalogue_id, duree_minutes, capacite, actif')
         .single()
 
       if (error || !data) {
         setErreur(`Impossible d'activer : ${error?.message ?? 'réponse vide'}`)
       } else {
-        setActifs((prev) => ({
+        setLignes((prev) => ({
           ...prev,
           [item.id]: {
             id: data.id,
             catalogue_id: data.catalogue_id ?? item.id,
             duree_minutes: data.duree_minutes,
             capacite: data.capacite ?? 1,
+            actif: true,
           },
         }))
         await regenererApresChangement(item.nom, 'activé')
@@ -110,19 +140,19 @@ export default function TypesRdvForm({
   }
 
   const modifierDuree = async (item: CatalogueItem, dureeMinutes: number) => {
-    const actif = actifs[item.id]
-    if (!actif) return
+    const ligne = lignes[item.id]
+    if (!ligne?.actif) return
 
-    setActifs((prev) => ({
+    setLignes((prev) => ({
       ...prev,
-      [item.id]: { ...actif, duree_minutes: dureeMinutes },
+      [item.id]: { ...ligne, duree_minutes: dureeMinutes },
     }))
 
     const supabase = createClient()
     const { error } = await supabase
       .from('types_rdv')
       .update({ duree_minutes: dureeMinutes })
-      .eq('id', actif.id)
+      .eq('id', ligne.id)
 
     if (error) {
       setErreur(`Impossible de modifier la durée : ${error.message}`)
@@ -130,21 +160,21 @@ export default function TypesRdvForm({
   }
 
   const modifierCapacite = async (item: CatalogueItem, capacite: number) => {
-    const actif = actifs[item.id]
-    if (!actif) return
+    const ligne = lignes[item.id]
+    if (!ligne?.actif) return
 
     const capaciteValide = Math.max(1, capacite)
 
-    setActifs((prev) => ({
+    setLignes((prev) => ({
       ...prev,
-      [item.id]: { ...actif, capacite: capaciteValide },
+      [item.id]: { ...ligne, capacite: capaciteValide },
     }))
 
     const supabase = createClient()
     const { error } = await supabase
       .from('types_rdv')
       .update({ capacite: capaciteValide })
-      .eq('id', actif.id)
+      .eq('id', ligne.id)
 
     if (error) {
       setErreur(`Impossible de modifier la capacité : ${error.message}`)
@@ -153,12 +183,12 @@ export default function TypesRdvForm({
 
   return (
     <div className="bg-white rounded-lg border p-4 mb-6">
-      <h2 className="font-semibold mb-1">Types de rendez-vous proposés</h2>
-      <p className="text-sm text-gray-500 mb-4">
-        Cochez les prestations que votre pharmacie propose. Vous pouvez ajuster la durée de
-        chaque créneau, et le nombre de rendez-vous acceptés en même temps sur un même créneau
-        (par exemple 3 vaccinations en parallèle, contre 1 seul dépistage).
-      </p>
+      <div className="flex items-center justify-between mb-4">
+        <h2 className="font-semibold">Types de rendez-vous proposés</h2>
+        <a href="/dashboard-pharmacie/aide#types-rdv" className="text-xs underline text-gray-500">
+          Aide
+        </a>
+      </div>
 
       <div className="space-y-5 max-h-[500px] overflow-y-auto pr-2">
         {Object.entries(parCategorie).map(([categorie, items]) => (
@@ -166,7 +196,8 @@ export default function TypesRdvForm({
             <h3 className="text-sm font-semibold text-gray-700 mb-2">{categorie}</h3>
             <div className="space-y-2">
               {items.map((item) => {
-                const actif = actifs[item.id]
+                const ligne = lignes[item.id]
+                const actif = !!ligne?.actif
                 return (
                   <label
                     key={item.id}
@@ -174,7 +205,7 @@ export default function TypesRdvForm({
                   >
                     <input
                       type="checkbox"
-                      checked={!!actif}
+                      checked={actif}
                       disabled={loading === item.id}
                       onChange={() => toggleType(item)}
                     />
@@ -189,7 +220,7 @@ export default function TypesRdvForm({
                             type="number"
                             min={5}
                             step={5}
-                            value={actif.duree_minutes}
+                            value={ligne.duree_minutes}
                             onChange={(e) =>
                               modifierDuree(item, parseInt(e.target.value) || 15)
                             }
@@ -202,7 +233,7 @@ export default function TypesRdvForm({
                             type="number"
                             min={1}
                             step={1}
-                            value={actif.capacite}
+                            value={ligne.capacite}
                             onChange={(e) =>
                               modifierCapacite(item, parseInt(e.target.value) || 1)
                             }

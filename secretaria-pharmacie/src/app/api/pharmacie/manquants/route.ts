@@ -24,16 +24,9 @@ export async function POST(request: NextRequest) {
   const body = await request.json()
   const pharmacieId = typeof body.pharmacieId === 'string' ? body.pharmacieId : ''
   const medicamentId = typeof body.medicamentId === 'string' ? body.medicamentId : ''
-  const quantiteManquante = Number.isFinite(body.quantiteManquante)
-    ? Math.max(1, Math.trunc(body.quantiteManquante))
-    : 1
   const patientNom = typeof body.patientNom === 'string' ? body.patientNom.trim() : ''
   const patientTelephone =
     typeof body.patientTelephone === 'string' ? body.patientTelephone.trim() : ''
-  const patientEmail =
-    typeof body.patientEmail === 'string' && body.patientEmail.trim()
-      ? body.patientEmail.trim()
-      : null
 
   if (!pharmacieId || !medicamentId || !patientNom || !patientTelephone) {
     return NextResponse.json({ error: 'Champs manquants' }, { status: 400 })
@@ -48,10 +41,8 @@ export async function POST(request: NextRequest) {
     .insert({
       pharmacie_id: pharmacieId,
       medicament_id: medicamentId,
-      quantite_manquante: quantiteManquante,
       patient_nom: patientNom,
       patient_telephone: normaliserNumeroFrancais(patientTelephone),
-      patient_email: patientEmail,
     })
     .select('id')
     .single()
@@ -63,29 +54,44 @@ export async function POST(request: NextRequest) {
   return NextResponse.json({ success: true, manquantId: data.id })
 }
 
-// PATCH : fait avancer une fiche d'un statut à l'autre.
-// champ "disponible" : envoie le SMS au patient (une seule fois).
-// champ "delivre" : clôture la fiche — elle disparaît du dashboard ET de ce
-// que Paul lit (le node n8n filtre sur delivre = false), sans envoi de SMS.
+// PATCH : fait passer une fiche d'un statut à l'autre parmi les 3 possibles :
+// "manquant" (en attente), "disponible" (SMS envoyé une seule fois au
+// patient), "delivre" (clôturée — supprimée automatiquement 7 jours plus
+// tard, cf. migration SQL / job pg_cron + purge côté page.tsx).
 export async function PATCH(request: NextRequest) {
   const role = await getUserRole()
   if (!role || (role.role !== 'pharmacie' && role.role !== 'admin')) {
     return NextResponse.json({ error: 'Non autorisé' }, { status: 403 })
   }
 
-  const { id, pharmacieId, champ } = await request.json()
+  const { id, pharmacieId, statut } = await request.json()
   if (!id || typeof id !== 'string') {
     return NextResponse.json({ error: 'Identifiant manquant' }, { status: 400 })
   }
-  if (champ !== 'disponible' && champ !== 'delivre') {
-    return NextResponse.json({ error: 'Champ invalide' }, { status: 400 })
+  if (statut !== 'manquant' && statut !== 'disponible' && statut !== 'delivre') {
+    return NextResponse.json({ error: 'Statut invalide' }, { status: 400 })
   }
 
   if (role.role === 'pharmacie' && role.id !== pharmacieId) {
     return NextResponse.json({ error: 'Non autorisé' }, { status: 403 })
   }
 
-  if (champ === 'delivre') {
+  if (statut === 'manquant') {
+    const { error } = await supabaseAdmin
+      .from('manquants')
+      .update({ disponible: false, delivre: false, delivre_le: null })
+      .eq('id', id)
+      .eq('pharmacie_id', pharmacieId)
+
+    if (error) {
+      return NextResponse.json({ error: messageErreur(error.code, error.message) }, { status: 400 })
+    }
+    return NextResponse.json({ success: true })
+  }
+
+  if (statut === 'delivre') {
+    // Le trigger set_delivre_le() (migration SQL) renseigne delivre_le au
+    // passage à true, ce qui déclenche la purge automatique 7 jours après.
     const { error } = await supabaseAdmin
       .from('manquants')
       .update({ delivre: true })
@@ -98,7 +104,7 @@ export async function PATCH(request: NextRequest) {
     return NextResponse.json({ success: true })
   }
 
-  // champ === 'disponible'
+  // statut === 'disponible'
   const { data, error } = await supabaseAdmin
     .from('manquants')
     .update({ disponible: true })

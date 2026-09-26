@@ -7,6 +7,7 @@ export type DashboardTab = {
   label: string
   href: string
   badge?: number
+  disabled?: boolean
 }
 
 function Badge({ n }: { n: number }) {
@@ -53,6 +54,21 @@ export default function DashboardShell({
             >
               {tabs.map((tab) => {
                 const isActif = actif === tab.key
+                if (tab.disabled) {
+                  return (
+                    <span
+                      key={tab.key}
+                      title="Configurez d'abord vos horaires dans Paramètres"
+                      aria-disabled="true"
+                      className="dash-tab opacity-40 cursor-not-allowed select-none"
+                    >
+                      <span className="inline-flex items-center gap-1.5 whitespace-nowrap">
+                        {tab.label}
+                        {tab.badge != null ? <Badge n={tab.badge} /> : null}
+                      </span>
+                    </span>
+                  )
+                }
                 return (
                   <Link
                     key={tab.key}

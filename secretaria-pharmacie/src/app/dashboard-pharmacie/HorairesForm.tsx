@@ -14,13 +14,33 @@ const JOURS = [
   { key: 'dimanche', label: 'Dimanche' },
 ]
 
-type Horaires = Record<string, { debut: string; fin: string } | null>
+const MAX_PLAGES = 2
 
-function normaliserHoraires(h: Horaires): Horaires {
+type Plage = { debut: string; fin: string }
+type Horaires = Record<string, Plage[] | null>
+/** Ancien format (un objet par jour) encore présent en base, ou nouveau (tableau). */
+type HorairesInitiaux = Record<string, Plage[] | Plage | null | undefined>
+
+const PLAGE_MATIN: Plage = { debut: '09:00', fin: '12:30' }
+const PLAGE_APRES_MIDI: Plage = { debut: '14:00', fin: '19:00' }
+const PLAGE_JOURNEE: Plage = { debut: '09:00', fin: '19:00' }
+
+function versPlages(v: unknown): Plage[] | null {
+  if (!v) return null
+  if (Array.isArray(v) && v.length > 0) {
+    return v.slice(0, MAX_PLAGES).map((p) => ({ debut: p.debut, fin: p.fin }))
+  }
+  if (typeof v === 'object' && v !== null && 'debut' in v && 'fin' in v) {
+    const p = v as Plage
+    return [{ debut: p.debut, fin: p.fin }]
+  }
+  return null
+}
+
+function normaliserHoraires(h: HorairesInitiaux): Horaires {
   const out: Horaires = {}
   for (const { key } of JOURS) {
-    const v = h[key]
-    out[key] = v ? { debut: v.debut, fin: v.fin } : null
+    out[key] = versPlages(h[key])
   }
   return out
 }
@@ -36,7 +56,7 @@ export default function HorairesForm({
   enregistrerRef,
 }: {
   pharmacieId: string
-  horairesInitiaux: Horaires
+  horairesInitiaux: HorairesInitiaux
   onDirtyChange?: (dirty: boolean) => void
   enregistrerRef?: MutableRefObject<(() => Promise<void>) | null>
 }) {
@@ -58,15 +78,33 @@ export default function HorairesForm({
   const toggleJour = (jour: string) => {
     setHoraires((prev) => ({
       ...prev,
-      [jour]: prev[jour] ? null : { debut: '09:00', fin: '19:00' },
+      [jour]: prev[jour] ? null : [PLAGE_JOURNEE],
     }))
   }
 
-  const updateHoraire = (jour: string, champ: 'debut' | 'fin', valeur: string) => {
-    setHoraires((prev) => ({
-      ...prev,
-      [jour]: { ...(prev[jour] as { debut: string; fin: string }), [champ]: valeur },
-    }))
+  const ajouterPlage = (jour: string) => {
+    setHoraires((prev) => {
+      const plages = prev[jour] ?? []
+      if (plages.length >= MAX_PLAGES) return prev
+      // Suggestion matin/après-midi par défaut pour la 2e plage.
+      const suggestion = plages.length === 1 && plages[0].fin <= '13:00' ? PLAGE_APRES_MIDI : PLAGE_MATIN
+      return { ...prev, [jour]: [...plages, suggestion] }
+    })
+  }
+
+  const retirerPlage = (jour: string, index: number) => {
+    setHoraires((prev) => {
+      const plages = (prev[jour] ?? []).filter((_, i) => i !== index)
+      return { ...prev, [jour]: plages.length > 0 ? plages : null }
+    })
+  }
+
+  const updatePlage = (jour: string, index: number, champ: 'debut' | 'fin', valeur: string) => {
+    setHoraires((prev) => {
+      const plages = [...(prev[jour] ?? [])]
+      plages[index] = { ...plages[index], [champ]: valeur }
+      return { ...prev, [jour]: plages }
+    })
   }
 
   const enregistrer = async () => {
@@ -113,41 +151,84 @@ export default function HorairesForm({
 
   return (
     <div className="ui-panel p-4 sm:p-5 mb-6">
-      <h2 className="font-medium text-[var(--color-ink)] mb-4">Horaires d&apos;ouverture</h2>
+      <div className="flex items-center justify-between mb-4">
+        <h2 className="font-medium text-[var(--color-ink)]">Horaires d&apos;ouverture</h2>
+        <a
+          href="/dashboard-pharmacie/aide#horaires"
+          className="text-xs underline text-[var(--color-ink-soft)]"
+        >
+          Aide
+        </a>
+      </div>
       <div className="space-y-3">
-        {JOURS.map(({ key, label }) => (
-          <div
-            key={key}
-            className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 py-2 border-b border-[var(--color-line)] last:border-0"
-          >
-            <label className="flex items-center gap-2 sm:w-32 shrink-0 text-sm">
-              <input
-                type="checkbox"
-                checked={!!horaires[key]}
-                onChange={() => toggleJour(key)}
-                className="rounded border-[var(--color-line)]"
-              />
-              {label}
-            </label>
-            {horaires[key] && (
-              <div className="flex items-center gap-2 pl-6 sm:pl-0">
-                <input
-                  type="time"
-                  value={horaires[key]!.debut}
-                  onChange={(e) => updateHoraire(key, 'debut', e.target.value)}
-                  className="ui-input !w-auto"
-                />
-                <span className="text-[var(--color-ink-soft)] text-sm">à</span>
-                <input
-                  type="time"
-                  value={horaires[key]!.fin}
-                  onChange={(e) => updateHoraire(key, 'fin', e.target.value)}
-                  className="ui-input !w-auto"
-                />
+        {JOURS.map(({ key, label }) => {
+          const plages = horaires[key]
+          const ouvert = !!plages
+          return (
+            <div
+              key={key}
+              className="flex flex-col gap-2 py-2 border-b border-[var(--color-line)] last:border-0"
+            >
+              <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
+                <label className="flex items-center gap-2 sm:w-32 shrink-0 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={ouvert}
+                    onChange={() => toggleJour(key)}
+                    className="rounded border-[var(--color-line)]"
+                  />
+                  {label}
+                </label>
+
+                {!ouvert && (
+                  <span className="inline-flex items-center gap-1 pl-6 sm:pl-0 text-xs font-medium text-[var(--color-ink-soft)] bg-[var(--color-line)]/40 px-2 py-0.5 rounded">
+                    Fermé
+                  </span>
+                )}
+
+                {ouvert && (
+                  <div className="flex flex-col gap-2 pl-6 sm:pl-0">
+                    {plages!.map((plage, index) => (
+                      <div key={index} className="flex items-center gap-2">
+                        <input
+                          type="time"
+                          value={plage.debut}
+                          onChange={(e) => updatePlage(key, index, 'debut', e.target.value)}
+                          className="ui-input !w-auto"
+                        />
+                        <span className="text-[var(--color-ink-soft)] text-sm">à</span>
+                        <input
+                          type="time"
+                          value={plage.fin}
+                          onChange={(e) => updatePlage(key, index, 'fin', e.target.value)}
+                          className="ui-input !w-auto"
+                        />
+                        {plages!.length > 1 && (
+                          <button
+                            type="button"
+                            onClick={() => retirerPlage(key, index)}
+                            className="text-red-600 text-xs underline shrink-0"
+                          >
+                            Retirer
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                    {plages!.length < MAX_PLAGES && (
+                      <button
+                        type="button"
+                        onClick={() => ajouterPlage(key)}
+                        className="text-xs underline text-[var(--color-ink-soft)] w-fit"
+                      >
+                        + Ajouter une plage (ex : matin / après-midi)
+                      </button>
+                    )}
+                  </div>
+                )}
               </div>
-            )}
-          </div>
-        ))}
+            </div>
+          )
+        })}
       </div>
       <button
         type="button"

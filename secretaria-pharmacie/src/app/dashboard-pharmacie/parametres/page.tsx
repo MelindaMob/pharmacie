@@ -7,6 +7,7 @@ import HorairesExceptionnelsForm from './HorairesExceptionnelsForm'
 import TypesRdvForm from '../TypesRdvForm'
 import DelaiAnnulationForm from '../DelaiAnnulationForm'
 import { compterNonLusPharmacie } from '@/lib/messages/nonLus'
+import { auMoinsUnJourOuvert } from '@/lib/pharmacie/onboarding'
 
 export const dynamic = 'force-dynamic'
 
@@ -27,9 +28,9 @@ export default async function ParametresPharmaciePage() {
     .select('id, nom, categorie, duree_minutes_defaut')
     .order('categorie', { ascending: true })
 
-  const { data: typesActifsData } = await supabase
+  const { data: typesRdvData } = await supabase
     .from('types_rdv')
-    .select('id, catalogue_id, duree_minutes, capacite')
+    .select('id, catalogue_id, duree_minutes, capacite, actif')
     .eq('pharmacie_id', role.id)
     .not('catalogue_id', 'is', null)
 
@@ -40,9 +41,18 @@ export default async function ParametresPharmaciePage() {
 
   const nbNonLus = await compterNonLusPharmacie(role.id)
 
+  const bloque = !auMoinsUnJourOuvert(pharmacie?.horaires_ouverture)
+
   return (
-    <DashboardNav actif="parametres" nbNonLus={nbNonLus}>
+    <DashboardNav actif="parametres" nbNonLus={nbNonLus} bloque={bloque}>
       <div className="max-w-3xl">
+        {bloque && (
+          <div className="mb-6 rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+            Configurez et enregistrez vos horaires d&apos;ouverture ci-dessous pour débloquer le
+            reste du tableau de bord (calendrier, messages, manquants, infos supplémentaires).
+          </div>
+        )}
+
         <p className="text-sm text-[var(--color-ink-soft)] mb-4 break-words">
           Adresse : {pharmacie?.adresse || 'Non renseignée par Secretar.IA pour le moment'}
         </p>
@@ -55,11 +65,12 @@ export default async function ParametresPharmaciePage() {
         <TypesRdvForm
           pharmacieId={role.id}
           catalogue={catalogue ?? []}
-          typesActifs={(typesActifsData ?? []).filter((t) => t.catalogue_id != null) as {
+          typesRdv={(typesRdvData ?? []).filter((t) => t.catalogue_id != null) as {
             id: string
             catalogue_id: string
             duree_minutes: number
             capacite: number
+            actif: boolean
           }[]}
         />
         <DelaiAnnulationForm

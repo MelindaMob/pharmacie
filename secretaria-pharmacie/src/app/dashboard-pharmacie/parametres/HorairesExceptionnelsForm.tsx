@@ -115,13 +115,17 @@ export default function HorairesExceptionnelsForm({
 
   return (
     <div className="bg-[var(--color-surface)] border border-[var(--color-line)] rounded-xl p-4 mb-6">
-      <h2 className="font-medium text-[var(--color-ink)] mb-1">
-        Fermetures et horaires exceptionnels
-      </h2>
-      <p className="text-sm text-[var(--color-ink-soft)] mb-4">
-        Indiquez un jour férié, une fermeture sur plusieurs jours, ou des horaires différents
-        pour une période. Les créneaux sont mis à jour automatiquement.
-      </p>
+      <div className="flex items-center justify-between mb-4">
+        <h2 className="font-medium text-[var(--color-ink)]">
+          Fermetures et horaires exceptionnels
+        </h2>
+        <a
+          href="/dashboard-pharmacie/aide#exceptions"
+          className="text-xs underline text-[var(--color-ink-soft)]"
+        >
+          Aide
+        </a>
+      </div>
 
       <div className="flex flex-col sm:flex-wrap sm:flex-row sm:items-end gap-3 mb-4">
         <div className="w-full sm:w-auto">

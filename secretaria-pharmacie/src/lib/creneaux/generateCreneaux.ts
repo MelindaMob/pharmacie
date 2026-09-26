@@ -5,6 +5,8 @@ import { fromZonedTime, toZonedTime } from 'date-fns-tz'
 const JOURS = ['dimanche', 'lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi']
 const TZ = 'Europe/Paris'
 
+type Plage = { debut: string; fin: string }
+
 function messageErreur(error: unknown): string {
   if (!error) return 'Erreur inconnue'
   if (typeof error === 'string') return error
@@ -28,6 +30,18 @@ function adminClient() {
   )
 }
 
+/**
+ * Normalise une entrée d'horaires (nouveau format : tableau de plages par
+ * jour, jusqu'à 2 ; ancien format encore présent dans horaires_speciaux des
+ * exceptions : un seul objet {debut, fin}) en tableau de plages.
+ */
+function versPlages(valeur: unknown): Plage[] {
+  if (!valeur) return []
+  if (Array.isArray(valeur)) return valeur as Plage[]
+  if (typeof valeur === 'object' && 'debut' in (valeur as object)) return [valeur as Plage]
+  return []
+}
+
 export async function generateCreneauxPourPharmacie(
   pharmacieId: string,
   nbJours: number = 28 // 4 semaines
@@ -49,6 +63,7 @@ export async function generateCreneauxPourPharmacie(
     .from('types_rdv')
     .select('id, duree_minutes')
     .eq('pharmacie_id', pharmacieId)
+    .eq('actif', true)
 
   if (!typesRdv || typesRdv.length === 0) {
     return { success: false, count: 0, error: 'Aucun type de RDV configuré' }
@@ -89,30 +104,32 @@ export async function generateCreneauxPourPharmacie(
 
     if (exception?.ferme) continue
 
-    const horairesJour =
-      exception?.horaires_speciaux ?? pharmacie.horaires_ouverture[nomJour]
+    const plagesJour = exception?.horaires_speciaux
+      ? versPlages(exception.horaires_speciaux)
+      : versPlages(pharmacie.horaires_ouverture[nomJour])
 
-    if (!horairesJour) continue
+    if (plagesJour.length === 0) continue
 
-    const { debut, fin } = horairesJour as { debut: string; fin: string }
-    const debutNorm = debut.length === 5 ? `${debut}:00` : debut
-    const finNorm = fin.length === 5 ? `${fin}:00` : fin
+    for (const { debut, fin } of plagesJour) {
+      const debutNorm = debut.length === 5 ? `${debut}:00` : debut
+      const finNorm = fin.length === 5 ? `${fin}:00` : fin
 
-    for (const type of typesRdv) {
-      const dureeMin = type.duree_minutes
+      for (const type of typesRdv) {
+        const dureeMin = type.duree_minutes
 
-      let curseur = fromZonedTime(`${dateStr} ${debutNorm}`, TZ)
-      const finJournee = fromZonedTime(`${dateStr} ${finNorm}`, TZ)
+        let curseur = fromZonedTime(`${dateStr} ${debutNorm}`, TZ)
+        const finPlage = fromZonedTime(`${dateStr} ${finNorm}`, TZ)
 
-      while (addMinutes(curseur, dureeMin) <= finJournee) {
-        nouveauxCreneaux.push({
-          pharmacie_id: pharmacieId,
-          type_rdv_id: type.id,
-          debut: curseur.toISOString(),
-          fin: addMinutes(curseur, dureeMin).toISOString(),
-          statut: 'disponible',
-        })
-        curseur = addMinutes(curseur, dureeMin)
+        while (addMinutes(curseur, dureeMin) <= finPlage) {
+          nouveauxCreneaux.push({
+            pharmacie_id: pharmacieId,
+            type_rdv_id: type.id,
+            debut: curseur.toISOString(),
+            fin: addMinutes(curseur, dureeMin).toISOString(),
+            statut: 'disponible',
+          })
+          curseur = addMinutes(curseur, dureeMin)
+        }
       }
     }
   }

@@ -30,11 +30,12 @@ export default function DelaiAnnulationForm({
 
   return (
     <div className="bg-white rounded-lg border p-4 mb-6">
-      <h2 className="font-semibold mb-2">Délai d&apos;annulation minimum</h2>
-      <p className="text-sm text-gray-500 mb-3">
-        Nombre d&apos;heures avant le rendez-vous en dessous duquel le client ne peut plus
-        annuler en ligne.
-      </p>
+      <div className="flex items-center justify-between mb-2">
+        <h2 className="font-semibold">Délai d&apos;annulation minimum</h2>
+        <a href="/dashboard-pharmacie/aide#delai-annulation" className="text-xs underline text-gray-500">
+          Aide
+        </a>
+      </div>
       <div className="flex items-center gap-2">
         <input
           type="number"

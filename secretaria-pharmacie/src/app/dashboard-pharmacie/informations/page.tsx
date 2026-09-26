@@ -4,6 +4,7 @@ import { redirect } from 'next/navigation'
 import DashboardNav from '../DashboardNav'
 import InformationsForm from './InformationsForm'
 import { compterNonLusPharmacie } from '@/lib/messages/nonLus'
+import { horairesSontConfigures } from '@/lib/pharmacie/onboarding'
 
 export const dynamic = 'force-dynamic'
 
@@ -16,6 +17,10 @@ export default async function InformationsPage() {
   const role = await getUserRole()
   if (!role || role.role !== 'pharmacie') redirect('/connexion')
 
+  if (!(await horairesSontConfigures(role.id))) {
+    redirect('/dashboard-pharmacie/parametres')
+  }
+
   const nbNonLus = await compterNonLusPharmacie(role.id)
 
   const { data } = await supabaseAdmin
@@ -27,14 +32,17 @@ export default async function InformationsPage() {
   return (
     <DashboardNav actif="informations" nbNonLus={nbNonLus}>
       <div className="max-w-2xl">
-        <h1 className="text-lg font-semibold text-[var(--color-ink)] mb-1">
-          Infos supplémentaires
-        </h1>
-        <p className="text-sm text-[var(--color-ink-soft)] mb-6">
-          {
-            "Tout ce que vous écrivez ici, Paul peut le dire aux patients qui appellent — chargé silencieusement au début de chaque appel, comme vos horaires. Vous pouvez fixer une date de début (l'info n'est lue par Paul qu'à partir de ce jour-là) et/ou une date de fin (elle disparaît toute seule après), ou laisser les deux vides pour une info à supprimer vous-même le moment venu."
-          }
-        </p>
+        <div className="flex items-center justify-between mb-1">
+          <h1 className="text-lg font-semibold text-[var(--color-ink)]">
+            Infos supplémentaires
+          </h1>
+          <a
+            href="/dashboard-pharmacie/aide#infos-supplementaires"
+            className="text-xs underline text-[var(--color-ink-soft)]"
+          >
+            Aide
+          </a>
+        </div>
 
         <InformationsForm pharmacieId={role.id} infos={data ?? []} />
       </div>

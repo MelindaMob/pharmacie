@@ -7,6 +7,7 @@ import DashboardCalendar from './DashboardCalendar'
 import DashboardNav from './DashboardNav'
 import { compterNonLusPharmacie } from '@/lib/messages/nonLus'
 import { unwrapEmbed } from '@/lib/supabase/unwrap'
+import { horairesSontConfigures } from '@/lib/pharmacie/onboarding'
 
 export const dynamic = 'force-dynamic'
 
@@ -46,6 +47,10 @@ type CreneauRow = {
 export default async function DashboardPharmaciePage() {
   const role = await getUserRole()
   if (!role || role.role !== 'pharmacie') redirect('/connexion')
+
+  if (!(await horairesSontConfigures(role.id))) {
+    redirect('/dashboard-pharmacie/parametres')
+  }
 
   const debutPeriode = startOfWeek(new Date(), { locale: fr })
   const finPeriode = addDays(debutPeriode, 28)

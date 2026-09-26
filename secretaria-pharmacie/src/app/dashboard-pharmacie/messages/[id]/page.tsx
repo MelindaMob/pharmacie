@@ -8,6 +8,7 @@ import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
 import { compterNonLusPharmacie } from '@/lib/messages/nonLus'
 import { unwrapEmbed } from '@/lib/supabase/unwrap'
+import { horairesSontConfigures } from '@/lib/pharmacie/onboarding'
 
 export const dynamic = 'force-dynamic'
 
@@ -19,6 +20,10 @@ export default async function ConversationPharmaciePage({
   const { id } = await params
   const role = await getUserRole()
   if (!role || role.role !== 'pharmacie') redirect('/connexion')
+
+  if (!(await horairesSontConfigures(role.id))) {
+    redirect('/dashboard-pharmacie/parametres')
+  }
 
   const supabase = await createClient()
 

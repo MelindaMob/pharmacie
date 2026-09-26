@@ -5,12 +5,17 @@ import ListeConversations from '@/components/ListeConversations'
 import DashboardNav from '../DashboardNav'
 import { compterNonLusPharmacie } from '@/lib/messages/nonLus'
 import { unwrapEmbed } from '@/lib/supabase/unwrap'
+import { horairesSontConfigures } from '@/lib/pharmacie/onboarding'
 
 export const dynamic = 'force-dynamic'
 
 export default async function MessagesPharmaciePage() {
   const role = await getUserRole()
   if (!role || role.role !== 'pharmacie') redirect('/connexion')
+
+  if (!(await horairesSontConfigures(role.id))) {
+    redirect('/dashboard-pharmacie/parametres')
+  }
 
   const supabaseAdmin = createAdminClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
