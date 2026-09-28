@@ -2,7 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { getUserRole } from '@/lib/auth/getRole'
 import { redirect } from 'next/navigation'
 import DashboardNav from '../DashboardNav'
-import HorairesEtGeneration from '../HorairesEtGeneration'
+import HorairesForm from '../HorairesForm'
 import HorairesExceptionnelsForm from './HorairesExceptionnelsForm'
 import TypesRdvForm from '../TypesRdvForm'
 import DelaiAnnulationForm from '../DelaiAnnulationForm'
@@ -57,7 +57,7 @@ export default async function ParametresPharmaciePage() {
           Adresse : {pharmacie?.adresse || 'Non renseignée par Secretar.IA pour le moment'}
         </p>
 
-        <HorairesEtGeneration
+        <HorairesForm
           pharmacieId={role.id}
           horairesInitiaux={pharmacie?.horaires_ouverture ?? {}}
         />

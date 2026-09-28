@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState, type MutableRefObject } from 'react'
+import { useMemo, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { regenererCreneauxClient } from '@/lib/creneaux/regenererCreneauxClient'
 
@@ -52,13 +52,9 @@ function horairesEgaux(a: Horaires, b: Horaires) {
 export default function HorairesForm({
   pharmacieId,
   horairesInitiaux,
-  onDirtyChange,
-  enregistrerRef,
 }: {
   pharmacieId: string
   horairesInitiaux: HorairesInitiaux
-  onDirtyChange?: (dirty: boolean) => void
-  enregistrerRef?: MutableRefObject<(() => Promise<void>) | null>
 }) {
   const [horaires, setHoraires] = useState<Horaires>(() =>
     normaliserHoraires(horairesInitiaux ?? {})
@@ -70,10 +66,6 @@ export default function HorairesForm({
   const [message, setMessage] = useState('')
 
   const dirty = useMemo(() => !horairesEgaux(horaires, sauvegardes), [horaires, sauvegardes])
-
-  useEffect(() => {
-    onDirtyChange?.(dirty)
-  }, [dirty, onDirtyChange])
 
   const toggleJour = (jour: string) => {
     setHoraires((prev) => ({
@@ -121,7 +113,7 @@ export default function HorairesForm({
     if (error) {
       setSaving(false)
       setMessage("Erreur lors de l'enregistrement des horaires")
-      throw new Error("Erreur lors de l'enregistrement des horaires")
+      return
     }
 
     try {
@@ -129,25 +121,15 @@ export default function HorairesForm({
       setSauvegardes(normaliserHoraires(horaires))
       setMessage(`Horaires enregistrés et ${count} créneaux régénérés ✓`)
     } catch (e) {
-      const msg =
+      setMessage(
         e instanceof Error
           ? `Horaires enregistrés, mais créneaux : ${e.message}`
           : 'Horaires enregistrés, erreur lors de la génération des créneaux'
-      setMessage(msg)
-      setSaving(false)
-      throw e instanceof Error ? e : new Error(msg)
+      )
     }
 
     setSaving(false)
   }
-
-  useEffect(() => {
-    if (!enregistrerRef) return
-    enregistrerRef.current = enregistrer
-    return () => {
-      enregistrerRef.current = null
-    }
-  })
 
   return (
     <div className="ui-panel p-4 sm:p-5 mb-6">
