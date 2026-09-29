@@ -37,7 +37,11 @@ type Creneau = {
   reservations: ReservationInfo[]
 }
 
-type FiltreStatut = 'confirme' | 'annule' | 'no_show' | 'disponible'
+// Onglets "Annulés" et "Absences" retirés à la demande de Rodrigue (29/09) :
+// ils encombraient sans servir. L'historique des annulations/absences reste
+// consultable via la fiche de chaque réservation (DetailReservation), juste
+// plus comme vue calendrier à part entière.
+type FiltreStatut = 'confirme' | 'disponible'
 
 type CalendarEvent = {
   id: string
@@ -58,15 +62,11 @@ const COULEURS_TYPES = ['#1B4B66', '#1F8A5F', '#B45309', '#6D4C9F', '#B33951', '
 
 const COULEURS_STATUT: Record<FiltreStatut, string> = {
   confirme: '#1B4B66',
-  annule: '#B33951',
-  no_show: '#B45309',
   disponible: '#1F8A5F',
 }
 
 const OPTIONS_FILTRE: { key: FiltreStatut; label: string }[] = [
   { key: 'confirme', label: 'Confirmés' },
-  { key: 'annule', label: 'Annulés' },
-  { key: 'no_show', label: 'Absences' },
   { key: 'disponible', label: 'Disponibles' },
 ]
 
@@ -173,13 +173,11 @@ function CalendarEventCard({
     ? (couleurParType.get(event.resource.typeId) ?? COULEURS_STATUT.disponible)
     : COULEURS_STATUT[filtre]
 
-  const estAnnule = filtre === 'annule' && !event.resource.estDispo
-
   return (
     <div
       style={{
         borderLeft: `3px solid ${couleur}`,
-        background: estAnnule ? `${couleur}28` : `${couleur}14`,
+        background: `${couleur}14`,
         height: '100%',
         padding: '3px 6px',
         borderRadius: '4px',
@@ -193,7 +191,6 @@ function CalendarEventCard({
           fontFamily: 'var(--font-mono)',
           color: couleur,
           lineHeight: 1.2,
-          fontWeight: estAnnule ? 600 : 400,
         }}
       >
         {format(event.start, 'HH:mm')}
@@ -206,12 +203,11 @@ function CalendarEventCard({
           style={{
             fontSize: '12px',
             fontWeight: 500,
-            color: estAnnule ? couleur : 'var(--color-ink)',
+            color: 'var(--color-ink)',
             lineHeight: 1.2,
             whiteSpace: 'nowrap',
             overflow: 'hidden',
             textOverflow: 'ellipsis',
-            textDecoration: estAnnule ? 'line-through' : undefined,
           }}
         >
           {event.title}
@@ -223,8 +219,7 @@ function CalendarEventCard({
 
 function reservationsPourFiltre(creneau: Creneau, filtre: FiltreStatut): ReservationInfo[] {
   const resas = creneau.reservations ?? []
-  if (filtre === 'annule') return resas.filter((r) => r.statut === 'annule')
-  if (filtre === 'no_show') return resas.filter((r) => r.statut === 'no_show')
+  if (filtre === 'disponible') return []
   return resas.filter((r) => r.statut === 'confirme')
 }
 
@@ -257,11 +252,11 @@ export default function DashboardCalendar({
   } | null>(null)
   const [ajoutLibreOuvert, setAjoutLibreOuvert] = useState(false)
 
-  useEffect(() => {
+  const appliquerFiltre = (nouveau: FiltreStatut) => {
+    setFiltre(nouveau)
     const isMobile = window.matchMedia('(max-width: 768px)').matches
-    if (filtre === 'disponible' || isMobile) setView('day')
-    else setView('week')
-  }, [filtre])
+    setView(nouveau === 'disponible' || isMobile ? 'day' : 'week')
+  }
 
   useEffect(() => {
     const mq = window.matchMedia('(max-width: 768px)')
@@ -294,12 +289,6 @@ export default function DashboardCalendar({
   const creneauxFiltres = useMemo(() => {
     if (filtre === 'disponible') {
       return creneaux.filter((c) => c.statut === 'disponible')
-    }
-    if (filtre === 'annule') {
-      return creneaux.filter((c) => c.reservations?.some((r) => r.statut === 'annule'))
-    }
-    if (filtre === 'no_show') {
-      return creneaux.filter((c) => c.reservations?.some((r) => r.statut === 'no_show'))
     }
     return creneaux.filter((c) => c.reservations?.some((r) => r.statut === 'confirme'))
   }, [creneaux, filtre])
@@ -378,7 +367,7 @@ export default function DashboardCalendar({
             <button
               key={o.key}
               type="button"
-              onClick={() => setFiltre(o.key)}
+              onClick={() => appliquerFiltre(o.key)}
               className={`text-xs px-3 py-2 rounded-lg whitespace-nowrap transition-colors ${
                 filtre === o.key
                   ? 'bg-[var(--color-primary)] text-white'

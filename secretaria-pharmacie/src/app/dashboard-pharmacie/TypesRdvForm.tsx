@@ -20,6 +20,9 @@ type TypeRdvLigne = {
   actif: boolean
 }
 
+const DUREES_MINUTES = [5, 10, 15, 20, 25, 30, 45, 60]
+const CAPACITES = [1, 2, 3, 4, 5, 6, 7, 8]
+
 export default function TypesRdvForm({
   pharmacieId,
   catalogue,
@@ -141,8 +144,11 @@ export default function TypesRdvForm({
 
   const modifierDuree = async (item: CatalogueItem, dureeMinutes: number) => {
     const ligne = lignes[item.id]
-    if (!ligne?.actif) return
+    if (!ligne?.actif || loading) return
 
+    setLoading(item.id)
+    setMessage('')
+    setErreur('')
     setLignes((prev) => ({
       ...prev,
       [item.id]: { ...ligne, duree_minutes: dureeMinutes },
@@ -156,7 +162,18 @@ export default function TypesRdvForm({
 
     if (error) {
       setErreur(`Impossible de modifier la durée : ${error.message}`)
+      setLoading(null)
+      return
     }
+
+    try {
+      const count = await regenererCreneauxClient(pharmacieId)
+      setMessage(`Durée de « ${item.nom} » : ${dureeMinutes} min — ${count} créneaux régénérés ✓`)
+    } catch (e) {
+      const detail = e instanceof Error ? e.message : 'erreur inconnue'
+      setMessage(`Durée enregistrée, mais créneaux non régénérés : ${detail}`)
+    }
+    setLoading(null)
   }
 
   const modifierCapacite = async (item: CatalogueItem, capacite: number) => {
@@ -198,52 +215,66 @@ export default function TypesRdvForm({
               {items.map((item) => {
                 const ligne = lignes[item.id]
                 const actif = !!ligne?.actif
+                const durees =
+                  ligne && !DUREES_MINUTES.includes(ligne.duree_minutes)
+                    ? [...DUREES_MINUTES, ligne.duree_minutes].sort((a, b) => a - b)
+                    : DUREES_MINUTES
+                const capacites =
+                  ligne && !CAPACITES.includes(ligne.capacite)
+                    ? [...CAPACITES, ligne.capacite].sort((a, b) => a - b)
+                    : CAPACITES
                 return (
-                  <label
-                    key={item.id}
-                    className="flex items-center gap-3 cursor-pointer select-none"
-                  >
-                    <input
-                      type="checkbox"
-                      checked={actif}
-                      disabled={loading === item.id}
-                      onChange={() => toggleType(item)}
-                    />
-                    <span className="flex-1 text-sm">{item.nom}</span>
-                    {actif && (
-                      <div
-                        className="flex items-center gap-3"
-                        onClick={(e) => e.preventDefault()}
-                      >
+                  <div key={item.id} className="flex items-center gap-3">
+                    <label className="flex items-center gap-3 flex-1 min-w-0 cursor-pointer select-none">
+                      <input
+                        type="checkbox"
+                        checked={actif}
+                        disabled={loading === item.id}
+                        onChange={() => toggleType(item)}
+                      />
+                      <span className="text-sm truncate">{item.nom}</span>
+                    </label>
+                    {actif && ligne && (
+                      <div className="flex items-center gap-3 shrink-0">
                         <div className="flex items-center gap-1">
-                          <input
-                            type="number"
-                            min={5}
-                            step={5}
+                          <select
                             value={ligne.duree_minutes}
+                            disabled={loading === item.id}
                             onChange={(e) =>
-                              modifierDuree(item, parseInt(e.target.value) || 15)
+                              void modifierDuree(item, parseInt(e.target.value, 10))
                             }
-                            className="w-16 border rounded px-2 py-1 text-sm"
-                          />
+                            className="ui-input !w-auto !py-1 !px-2"
+                            aria-label={`Durée de ${item.nom}`}
+                          >
+                            {durees.map((d) => (
+                              <option key={d} value={d}>
+                                {d}
+                              </option>
+                            ))}
+                          </select>
                           <span className="text-xs text-gray-500">min</span>
                         </div>
                         <div className="flex items-center gap-1">
-                          <input
-                            type="number"
-                            min={1}
-                            step={1}
+                          <select
                             value={ligne.capacite}
+                            disabled={loading === item.id}
                             onChange={(e) =>
-                              modifierCapacite(item, parseInt(e.target.value) || 1)
+                              void modifierCapacite(item, parseInt(e.target.value, 10))
                             }
-                            className="w-14 border rounded px-2 py-1 text-sm"
-                          />
+                            className="ui-input !w-auto !py-1 !px-2"
+                            aria-label={`Capacité de ${item.nom}`}
+                          >
+                            {capacites.map((c) => (
+                              <option key={c} value={c}>
+                                {c}
+                              </option>
+                            ))}
+                          </select>
                           <span className="text-xs text-gray-500">en même temps</span>
                         </div>
                       </div>
                     )}
-                  </label>
+                  </div>
                 )
               })}
             </div>
