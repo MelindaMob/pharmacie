@@ -134,13 +134,13 @@ function CalendarToolbar({
         </button>
       </div>
 
-      <div className="flex gap-1 border border-[var(--color-line)] rounded-lg p-0.5 bg-[var(--color-surface)]">
+      <div className="flex w-full justify-center gap-1 border border-[var(--color-line)] rounded-lg p-0.5 bg-[var(--color-surface)]">
         {vues.map((v) => (
           <button
             key={v.key}
             type="button"
             onClick={() => onView(v.key)}
-            className={`text-xs px-2.5 sm:px-3 py-1.5 rounded-md transition-colors ${
+            className={`flex-1 sm:flex-none text-xs px-2.5 sm:px-3 py-2 sm:py-1.5 rounded-md transition-colors ${
               view === v.key
                 ? 'bg-[var(--color-primary)] text-white'
                 : 'text-[var(--color-ink-soft)] hover:text-[var(--color-ink)]'
@@ -362,13 +362,13 @@ export default function DashboardCalendar({
   return (
     <div>
       <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-4 gap-3">
-        <div className="flex gap-1 bg-[var(--color-surface)] border border-[var(--color-line)] rounded-xl p-1 overflow-x-auto">
+        <div className="flex w-full sm:w-auto gap-1 bg-[var(--color-surface)] border border-[var(--color-line)] rounded-xl p-1">
           {OPTIONS_FILTRE.map((o) => (
             <button
               key={o.key}
               type="button"
               onClick={() => appliquerFiltre(o.key)}
-              className={`text-xs px-3 py-2 rounded-lg whitespace-nowrap transition-colors ${
+              className={`flex-1 sm:flex-none text-sm sm:text-xs px-3 py-2.5 sm:py-2 rounded-lg whitespace-nowrap transition-colors ${
                 filtre === o.key
                   ? 'bg-[var(--color-primary)] text-white'
                   : 'text-[var(--color-ink-soft)] hover:text-[var(--color-ink)]'
@@ -388,7 +388,7 @@ export default function DashboardCalendar({
       </div>
 
       <div className="calendar-shell">
-        <div className="min-w-[320px] h-[min(70vh,650px)] sm:h-[650px]">
+        <div className="min-w-0 h-[min(75dvh,650px)] sm:h-[650px]">
           <Calendar
             localizer={localizer}
             events={events}

@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 
-export default function BoutonDeconnexion() {
+export default function BoutonDeconnexion({ className = '' }: { className?: string }) {
   const [loading, setLoading] = useState(false)
   const router = useRouter()
 
@@ -21,7 +21,7 @@ export default function BoutonDeconnexion() {
       type="button"
       onClick={deconnecter}
       disabled={loading}
-      className="ui-btn-ghost shrink-0 !py-1.5 !px-3 text-sm disabled:opacity-50"
+      className={`ui-btn-ghost shrink-0 !py-1.5 !px-3 text-sm disabled:opacity-50 ${className}`.trim()}
     >
       {loading ? '…' : 'Déconnexion'}
     </button>

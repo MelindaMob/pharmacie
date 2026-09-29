@@ -24,6 +24,7 @@ export default function DashboardNav({
     {
       key: 'informations',
       label: 'Infos supplémentaires',
+      labelCourt: 'Infos',
       href: '/dashboard-pharmacie/informations',
     },
     { key: 'parametres', label: 'Paramètres', href: '/dashboard-pharmacie/parametres' },

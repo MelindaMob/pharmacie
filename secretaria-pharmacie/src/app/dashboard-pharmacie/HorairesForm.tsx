@@ -209,12 +209,12 @@ export default function HorairesForm({
                         )}
                       </div>
                     ))}
-                    <div className="flex items-center gap-3">
+                    <div className="flex flex-wrap items-center gap-2">
                       {plages!.length < MAX_PLAGES && (
                         <button
                           type="button"
                           onClick={() => ajouterPlage(key)}
-                          className="text-xs underline text-[var(--color-ink-soft)] w-fit"
+                          className="text-xs underline text-[var(--color-ink-soft)] w-fit py-1"
                         >
                           + Ajouter une plage (ex : matin / après-midi)
                         </button>
@@ -222,7 +222,7 @@ export default function HorairesForm({
                       <button
                         type="button"
                         onClick={() => copierSurTousLesJours(key)}
-                        className="text-xs underline text-[var(--color-ink-soft)] w-fit"
+                        className="text-xs underline text-[var(--color-ink-soft)] w-fit py-1"
                       >
                         Copier sur tous les jours
                       </button>

@@ -21,7 +21,7 @@ type TypeRdvLigne = {
   actif: boolean
 }
 
-const DUREES_MINUTES = [5, 10, 15, 20, 25, 30, 45, 60]
+const DUREES_MINUTES = Array.from({ length: 60 }, (_, i) => i + 1)
 const CAPACITES = [1, 2, 3, 4, 5, 6, 7, 8]
 
 type Fenetre = { id: string; jour: string; debut: string; fin: string }
@@ -253,7 +253,7 @@ export default function TypesRdvForm({
                     : CAPACITES
                 return (
                   <div key={item.id}>
-                    <div className="flex items-center gap-3">
+                    <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
                     <label className="flex items-center gap-3 flex-1 min-w-0 cursor-pointer select-none">
                       <input
                         type="checkbox"
@@ -264,7 +264,7 @@ export default function TypesRdvForm({
                       <span className="text-sm truncate">{item.nom}</span>
                     </label>
                     {actif && ligne && (
-                      <div className="flex items-center gap-3 shrink-0">
+                      <div className="flex flex-wrap items-center gap-2 sm:gap-3 pl-7 sm:pl-0">
                         <div className="flex items-center gap-1">
                           <select
                             value={ligne.duree_minutes}
@@ -272,16 +272,15 @@ export default function TypesRdvForm({
                             onChange={(e) =>
                               void modifierDuree(item, parseInt(e.target.value, 10))
                             }
-                            className="ui-input !w-auto !py-1 !px-2"
+                            className="ui-input !w-auto !py-1.5 !px-2 min-w-[4.5rem]"
                             aria-label={`Durée de ${item.nom}`}
                           >
                             {durees.map((d) => (
                               <option key={d} value={d}>
-                                {d}
+                                {d} min
                               </option>
                             ))}
                           </select>
-                          <span className="text-xs text-gray-500">min</span>
                         </div>
                         <div className="flex items-center gap-1">
                           <select
@@ -290,7 +289,7 @@ export default function TypesRdvForm({
                             onChange={(e) =>
                               void modifierCapacite(item, parseInt(e.target.value, 10))
                             }
-                            className="ui-input !w-auto !py-1 !px-2"
+                            className="ui-input !w-auto !py-1.5 !px-2"
                             aria-label={`Capacité de ${item.nom}`}
                           >
                             {capacites.map((c) => (
@@ -304,7 +303,7 @@ export default function TypesRdvForm({
                         <button
                           type="button"
                           onClick={() => toggleOuvert(item.id)}
-                          className="text-xs underline text-gray-500 shrink-0"
+                          className="text-xs underline text-gray-500 shrink-0 py-1"
                         >
                           {estOuvert ? 'Masquer' : 'Créneaux spécifiques'}
                         </button>

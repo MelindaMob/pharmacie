@@ -170,7 +170,7 @@ export default function ManquantsForm({
                 <span>{m.medicament?.denomination ?? 'Médicament supprimé du catalogue'}</span>
               </div>
 
-              <div className="flex items-center gap-1 shrink-0">
+              <div className="flex items-center gap-1 shrink-0 w-full sm:w-auto">
                 {STATUTS.map(({ key, label }) => {
                   const actif = statutActuel === key
                   return (
@@ -179,7 +179,7 @@ export default function ManquantsForm({
                       type="button"
                       onClick={() => changerStatut(m.id, key)}
                       disabled={enCours === m.id || actif}
-                      className="px-2.5 py-1 rounded text-xs font-medium border transition-colors disabled:cursor-default"
+                      className="flex-1 sm:flex-none px-2.5 py-1.5 rounded text-xs font-medium border transition-colors disabled:cursor-default"
                       style={
                         actif
                           ? {

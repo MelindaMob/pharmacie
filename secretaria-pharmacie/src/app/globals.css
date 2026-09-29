@@ -295,7 +295,16 @@ body {
   -webkit-overflow-scrolling: touch;
 }
 
-@media (max-width: 768px) {
+@media (max-width: 767px) {
+  .ui-input {
+    font-size: 1rem;
+    min-height: 2.75rem;
+  }
+  input[type='time'],
+  input[type='date'],
+  select {
+    font-size: 1rem;
+  }
   .rbc-toolbar-custom {
     justify-content: center !important;
   }
