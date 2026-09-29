@@ -42,6 +42,95 @@ function versPlages(valeur: unknown): Plage[] {
   return []
 }
 
+function versMinutes(heure: string): number {
+  // Tolère "HH:MM" et "HH:MM:SS" (les colonnes `time` de Postgres renvoient
+  // souvent le format avec les secondes).
+  const [h, m] = heure.slice(0, 5).split(':').map(Number)
+  return h * 60 + m
+}
+
+function versHeure(minutes: number): string {
+  const h = Math.floor(minutes / 60)
+    .toString()
+    .padStart(2, '0')
+  const m = (minutes % 60).toString().padStart(2, '0')
+  return `${h}:${m}`
+}
+
+/** Intersection de deux plages horaires (en minutes), ou null si disjointes. */
+function intersectionPlage(a: Plage, b: Plage): Plage | null {
+  const debut = Math.max(versMinutes(a.debut), versMinutes(b.debut))
+  const fin = Math.min(versMinutes(a.fin), versMinutes(b.fin))
+  if (fin <= debut) return null
+  return { debut: versHeure(debut), fin: versHeure(fin) }
+}
+
+/** Intersecte une liste de plages "type" avec une liste de plages "pharmacie" (ouverture générale). */
+function intersectionPlages(plagesType: Plage[], plagesPharmacie: Plage[]): Plage[] {
+  const resultat: Plage[] = []
+  for (const pt of plagesType) {
+    for (const pp of plagesPharmacie) {
+      const inter = intersectionPlage(pt, pp)
+      if (inter) resultat.push(inter)
+    }
+  }
+  return resultat
+}
+
+type FenetreHebdo = { type_rdv_id: string; jour: string; debut: string; fin: string }
+type ExceptionType = {
+  type_rdv_id: string
+  date_debut: string
+  date_fin: string
+  ferme: boolean
+  debut: string | null
+  fin: string | null
+}
+
+/**
+ * Détermine les plages horaires effectives d'un type de RDV pour un jour
+ * donné, en tenant compte (dans l'ordre de priorité) :
+ * 1. d'une dérogation exceptionnelle (types_rdv_exceptions) couvrant la date,
+ * 2. sinon de ses fenêtres hebdomadaires propres (types_rdv_horaires) si au
+ *    moins une a été définie pour ce type (auquel cas il n'est ouvert QUE sur
+ *    les jours/heures définis),
+ * 3. sinon (aucune fenêtre définie du tout pour ce type) : repli sur
+ *    l'amplitude d'ouverture générale de la pharmacie ce jour-là — comportement
+ *    identique à avant l'introduction de cette fonctionnalité.
+ * Le résultat est toujours intersecté avec les plages d'ouverture générale de
+ * la pharmacie (un type ne peut jamais être proposé pharmacie fermée).
+ */
+function plagesEffectivesPourType(
+  typeRdvId: string,
+  dateStr: string,
+  nomJour: string,
+  plagesPharmacieJour: Plage[],
+  fenetresParType: Map<string, FenetreHebdo[]>,
+  exceptionsParType: Map<string, ExceptionType[]>
+): Plage[] {
+  const exceptions = exceptionsParType.get(typeRdvId) ?? []
+  const exception = exceptions.find((e) => e.date_debut <= dateStr && dateStr <= e.date_fin)
+
+  if (exception) {
+    if (exception.ferme) return []
+    if (!exception.debut || !exception.fin) return []
+    return intersectionPlages([{ debut: exception.debut, fin: exception.fin }], plagesPharmacieJour)
+  }
+
+  const fenetres = fenetresParType.get(typeRdvId) ?? []
+  if (fenetres.length > 0) {
+    const fenetresJour = fenetres
+      .filter((f) => f.jour === nomJour)
+      .map((f) => ({ debut: f.debut, fin: f.fin }))
+    // Des fenêtres existent pour ce type, mais pas ce jour-là : il n'est
+    // simplement pas proposé ce jour, pas de repli sur l'ouverture générale.
+    return intersectionPlages(fenetresJour, plagesPharmacieJour)
+  }
+
+  // Aucune fenêtre définie pour ce type : repli sur l'ouverture générale.
+  return plagesPharmacieJour
+}
+
 export async function generateCreneauxPourPharmacie(
   pharmacieId: string,
   nbJours: number = 28 // 4 semaines
@@ -69,21 +158,48 @@ export async function generateCreneauxPourPharmacie(
     return { success: false, count: 0, error: 'Aucun type de RDV configuré' }
   }
 
+  const typeIds = typesRdv.map((t) => t.id)
+
+  // 1bis. Fenêtres hebdomadaires et dérogations exceptionnelles par type de RDV
+  const { data: fenetresData } = await supabase
+    .from('types_rdv_horaires')
+    .select('type_rdv_id, jour, debut, fin')
+    .in('type_rdv_id', typeIds)
+
+  const fenetresParType = new Map<string, FenetreHebdo[]>()
+  for (const f of fenetresData ?? []) {
+    const liste = fenetresParType.get(f.type_rdv_id) ?? []
+    liste.push(f as FenetreHebdo)
+    fenetresParType.set(f.type_rdv_id, liste)
+  }
+
+  const { data: exceptionsData } = await supabase
+    .from('types_rdv_exceptions')
+    .select('type_rdv_id, date_debut, date_fin, ferme, debut, fin')
+    .in('type_rdv_id', typeIds)
+
+  const exceptionsParType = new Map<string, ExceptionType[]>()
+  for (const e of exceptionsData ?? []) {
+    const liste = exceptionsParType.get(e.type_rdv_id) ?? []
+    liste.push(e as ExceptionType)
+    exceptionsParType.set(e.type_rdv_id, liste)
+  }
+
   // Référence « aujourd’hui » en heure de Paris (évite le décalage UTC de Vercel)
   const maintenantParis = toZonedTime(new Date(), TZ)
   const debutPeriodeParis = startOfDay(maintenantParis)
   const finPeriodeParis = addDays(debutPeriodeParis, nbJours)
 
-  // 2. Récupérer les horaires exceptionnels sur la période
-  const { data: exceptions } = await supabase
+  // 2. Récupérer les horaires exceptionnels de la pharmacie sur la période
+  const { data: exceptionsPharmacie } = await supabase
     .from('horaires_exceptionnels')
     .select('date, ferme, horaires_speciaux')
     .eq('pharmacie_id', pharmacieId)
     .gte('date', format(debutPeriodeParis, 'yyyy-MM-dd'))
     .lte('date', format(finPeriodeParis, 'yyyy-MM-dd'))
 
-  const exceptionsParDate = new Map(
-    (exceptions ?? []).map((e) => [String(e.date).slice(0, 10), e])
+  const exceptionsPharmacieParDate = new Map(
+    (exceptionsPharmacie ?? []).map((e) => [String(e.date).slice(0, 10), e])
   )
 
   const nouveauxCreneaux: {
@@ -100,22 +216,31 @@ export async function generateCreneauxPourPharmacie(
     const dateStr = format(jourParis, 'yyyy-MM-dd')
     const nomJour = JOURS[jourParis.getDay()]
 
-    const exception = exceptionsParDate.get(dateStr)
+    const exceptionPharmacie = exceptionsPharmacieParDate.get(dateStr)
 
-    if (exception?.ferme) continue
+    if (exceptionPharmacie?.ferme) continue
 
-    const plagesJour = exception?.horaires_speciaux
-      ? versPlages(exception.horaires_speciaux)
-      : versPlages(pharmacie.horaires_ouverture[nomJour])
+    const horairesOuverture = pharmacie.horaires_ouverture as Record<string, unknown>
+    const plagesPharmacieJour = exceptionPharmacie?.horaires_speciaux
+      ? versPlages(exceptionPharmacie.horaires_speciaux)
+      : versPlages(horairesOuverture[nomJour])
 
-    if (plagesJour.length === 0) continue
+    if (plagesPharmacieJour.length === 0) continue
 
-    for (const { debut, fin } of plagesJour) {
-      const debutNorm = debut.length === 5 ? `${debut}:00` : debut
-      const finNorm = fin.length === 5 ? `${fin}:00` : fin
+    for (const type of typesRdv) {
+      const plagesEffectives = plagesEffectivesPourType(
+        type.id,
+        dateStr,
+        nomJour,
+        plagesPharmacieJour,
+        fenetresParType,
+        exceptionsParType
+      )
 
-      for (const type of typesRdv) {
+      for (const { debut, fin } of plagesEffectives) {
         const dureeMin = type.duree_minutes
+        const debutNorm = debut.length === 5 ? `${debut}:00` : debut
+        const finNorm = fin.length === 5 ? `${fin}:00` : fin
 
         let curseur = fromZonedTime(`${dateStr} ${debutNorm}`, TZ)
         const finPlage = fromZonedTime(`${dateStr} ${finNorm}`, TZ)

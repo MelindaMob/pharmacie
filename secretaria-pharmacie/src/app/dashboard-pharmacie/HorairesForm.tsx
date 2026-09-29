@@ -99,6 +99,19 @@ export default function HorairesForm({
     })
   }
 
+  const copierSurTousLesJours = (jourSource: string) => {
+    const plagesSource = horaires[jourSource]
+    if (!plagesSource) return
+    setHoraires((prev) => {
+      const next = { ...prev }
+      for (const { key } of JOURS) {
+        if (key === jourSource) continue
+        next[key] = plagesSource.map((p) => ({ ...p }))
+      }
+      return next
+    })
+  }
+
   const enregistrer = async () => {
     if (!dirty || saving) return
     setSaving(true)
@@ -196,15 +209,24 @@ export default function HorairesForm({
                         )}
                       </div>
                     ))}
-                    {plages!.length < MAX_PLAGES && (
+                    <div className="flex items-center gap-3">
+                      {plages!.length < MAX_PLAGES && (
+                        <button
+                          type="button"
+                          onClick={() => ajouterPlage(key)}
+                          className="text-xs underline text-[var(--color-ink-soft)] w-fit"
+                        >
+                          + Ajouter une plage (ex : matin / après-midi)
+                        </button>
+                      )}
                       <button
                         type="button"
-                        onClick={() => ajouterPlage(key)}
+                        onClick={() => copierSurTousLesJours(key)}
                         className="text-xs underline text-[var(--color-ink-soft)] w-fit"
                       >
-                        + Ajouter une plage (ex : matin / après-midi)
+                        Copier sur tous les jours
                       </button>
-                    )}
+                    </div>
                   </div>
                 )}
               </div>

@@ -4,6 +4,7 @@ import { useState, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { regenererCreneauxClient } from '@/lib/creneaux/regenererCreneauxClient'
+import TypeRdvFenetresForm from './TypeRdvFenetresForm'
 
 type CatalogueItem = {
   id: string
@@ -23,15 +24,31 @@ type TypeRdvLigne = {
 const DUREES_MINUTES = [5, 10, 15, 20, 25, 30, 45, 60]
 const CAPACITES = [1, 2, 3, 4, 5, 6, 7, 8]
 
+type Fenetre = { id: string; jour: string; debut: string; fin: string }
+type Exception = {
+  id: string
+  date_debut: string
+  date_fin: string
+  ferme: boolean
+  debut: string | null
+  fin: string | null
+}
+
 export default function TypesRdvForm({
   pharmacieId,
   catalogue,
   typesRdv,
+  fenetresParTypeId,
+  exceptionsParTypeId,
 }: {
   pharmacieId: string
   catalogue: CatalogueItem[]
   /** Toutes les lignes types_rdv de la pharmacie, actives ou non (on ne supprime plus jamais une ligne : on la désactive, pour ne pas casser les créneaux déjà générés). */
   typesRdv: TypeRdvLigne[]
+  /** Fenêtres hebdomadaires existantes, indexées par id de ligne types_rdv. */
+  fenetresParTypeId: Record<string, Fenetre[]>
+  /** Dérogations exceptionnelles existantes, indexées par id de ligne types_rdv. */
+  exceptionsParTypeId: Record<string, Exception[]>
 }) {
   const [lignes, setLignes] = useState<Record<string, TypeRdvLigne>>(() =>
     Object.fromEntries(typesRdv.map((t) => [t.catalogue_id, t]))
@@ -39,6 +56,7 @@ export default function TypesRdvForm({
   const [loading, setLoading] = useState<string | null>(null)
   const [message, setMessage] = useState('')
   const [erreur, setErreur] = useState('')
+  const [ouverts, setOuverts] = useState<Set<string>>(new Set())
   const router = useRouter()
 
   const parCategorie = useMemo(() => {
@@ -59,6 +77,15 @@ export default function TypesRdvForm({
       const detail = e instanceof Error ? e.message : 'erreur inconnue'
       setMessage(`${libelle} ${action}, mais créneaux non régénérés : ${detail}`)
     }
+  }
+
+  const toggleOuvert = (catalogueId: string) => {
+    setOuverts((prev) => {
+      const next = new Set(prev)
+      if (next.has(catalogueId)) next.delete(catalogueId)
+      else next.add(catalogueId)
+      return next
+    })
   }
 
   const toggleType = async (item: CatalogueItem) => {
@@ -207,7 +234,7 @@ export default function TypesRdvForm({
         </a>
       </div>
 
-      <div className="space-y-5 max-h-[500px] overflow-y-auto pr-2">
+      <div className="space-y-5 max-h-[600px] overflow-y-auto pr-2">
         {Object.entries(parCategorie).map(([categorie, items]) => (
           <div key={categorie}>
             <h3 className="text-sm font-semibold text-gray-700 mb-2">{categorie}</h3>
@@ -215,6 +242,7 @@ export default function TypesRdvForm({
               {items.map((item) => {
                 const ligne = lignes[item.id]
                 const actif = !!ligne?.actif
+                const estOuvert = ouverts.has(item.id)
                 const durees =
                   ligne && !DUREES_MINUTES.includes(ligne.duree_minutes)
                     ? [...DUREES_MINUTES, ligne.duree_minutes].sort((a, b) => a - b)
@@ -224,7 +252,8 @@ export default function TypesRdvForm({
                     ? [...CAPACITES, ligne.capacite].sort((a, b) => a - b)
                     : CAPACITES
                 return (
-                  <div key={item.id} className="flex items-center gap-3">
+                  <div key={item.id}>
+                    <div className="flex items-center gap-3">
                     <label className="flex items-center gap-3 flex-1 min-w-0 cursor-pointer select-none">
                       <input
                         type="checkbox"
@@ -272,7 +301,23 @@ export default function TypesRdvForm({
                           </select>
                           <span className="text-xs text-gray-500">en même temps</span>
                         </div>
+                        <button
+                          type="button"
+                          onClick={() => toggleOuvert(item.id)}
+                          className="text-xs underline text-gray-500 shrink-0"
+                        >
+                          {estOuvert ? 'Masquer' : 'Créneaux spécifiques'}
+                        </button>
                       </div>
+                    )}
+                    </div>
+                    {actif && estOuvert && ligne && (
+                      <TypeRdvFenetresForm
+                        pharmacieId={pharmacieId}
+                        typeRdvId={ligne.id}
+                        fenetresInitiales={fenetresParTypeId[ligne.id] ?? []}
+                        exceptionsInitiales={exceptionsParTypeId[ligne.id] ?? []}
+                      />
                     )}
                   </div>
                 )

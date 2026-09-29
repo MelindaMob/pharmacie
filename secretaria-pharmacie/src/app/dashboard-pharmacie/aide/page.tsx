@@ -64,6 +64,12 @@ export default async function AidePage() {
             prestation ne supprime rien : elle est simplement désactivée, et les créneaux déjà
             réservés restent visibles.
           </p>
+          <p>
+            Via « Créneaux spécifiques », vous pouvez limiter un type à certaines fenêtres
+            (par exemple vaccination uniquement mardi et jeudi 10h–12h) ou poser une dérogation
+            sur une période. Sans fenêtre définie, le type reste proposé sur toute l&apos;ouverture
+            de la pharmacie.
+          </p>
         </Section>
 
         <Section id="delai-annulation" titre="Délai d'annulation minimum">

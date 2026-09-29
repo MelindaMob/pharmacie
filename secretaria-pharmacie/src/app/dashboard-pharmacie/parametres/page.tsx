@@ -34,10 +34,52 @@ export default async function ParametresPharmaciePage() {
     .eq('pharmacie_id', role.id)
     .not('catalogue_id', 'is', null)
 
-  const { data: exceptions } = await supabase
-    .from('horaires_exceptionnels')
-    .select('id, date, ferme, horaires_speciaux')
-    .eq('pharmacie_id', role.id)
+  const typeIds = (typesRdvData ?? []).map((t) => t.id)
+
+  const [{ data: fenetresData }, { data: exceptionsData }, { data: exceptions }] =
+    await Promise.all([
+      typeIds.length > 0
+        ? supabase
+            .from('types_rdv_horaires')
+            .select('id, type_rdv_id, jour, debut, fin')
+            .in('type_rdv_id', typeIds)
+        : Promise.resolve({ data: [] as { id: string; type_rdv_id: string; jour: string; debut: string; fin: string }[] }),
+      typeIds.length > 0
+        ? supabase
+            .from('types_rdv_exceptions')
+            .select('id, type_rdv_id, date_debut, date_fin, ferme, debut, fin')
+            .in('type_rdv_id', typeIds)
+        : Promise.resolve({
+            data: [] as {
+              id: string
+              type_rdv_id: string
+              date_debut: string
+              date_fin: string
+              ferme: boolean
+              debut: string | null
+              fin: string | null
+            }[],
+          }),
+      supabase
+        .from('horaires_exceptionnels')
+        .select('id, date, ferme, horaires_speciaux')
+        .eq('pharmacie_id', role.id),
+    ])
+
+  const fenetresParTypeId: Record<string, { id: string; jour: string; debut: string; fin: string }[]> = {}
+  for (const f of fenetresData ?? []) {
+    if (!fenetresParTypeId[f.type_rdv_id]) fenetresParTypeId[f.type_rdv_id] = []
+    fenetresParTypeId[f.type_rdv_id].push(f)
+  }
+
+  const exceptionsParTypeId: Record<
+    string,
+    { id: string; date_debut: string; date_fin: string; ferme: boolean; debut: string | null; fin: string | null }[]
+  > = {}
+  for (const e of exceptionsData ?? []) {
+    if (!exceptionsParTypeId[e.type_rdv_id]) exceptionsParTypeId[e.type_rdv_id] = []
+    exceptionsParTypeId[e.type_rdv_id].push(e)
+  }
 
   const nbNonLus = await compterNonLusPharmacie(role.id)
 
@@ -72,6 +114,8 @@ export default async function ParametresPharmaciePage() {
             capacite: number
             actif: boolean
           }[]}
+          fenetresParTypeId={fenetresParTypeId}
+          exceptionsParTypeId={exceptionsParTypeId}
         />
         <DelaiAnnulationForm
           pharmacieId={role.id}
