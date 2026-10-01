@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 
 type Fenetre = { id: string; jour: string; debut: string; fin: string }
@@ -23,8 +23,25 @@ const JOURS = [
   { key: 'dimanche', label: 'Dimanche' },
 ]
 
-function libelleJour(jour: string) {
-  return JOURS.find((j) => j.key === jour)?.label ?? jour
+/** Pas de plafond ici (contrairement aux 2 plages/jour des horaires généraux) :
+ * un type de RDV peut avoir autant de plages que nécessaire sur une journée. */
+type Plage = { debut: string; fin: string }
+type Grille = Record<string, Plage[]> // jour -> plages (tableau vide = pas de fenêtre spécifique ce jour-là)
+
+const PLAGE_DEFAUT: Plage = { debut: '10:00', fin: '12:00' }
+
+function versGrille(fenetres: Fenetre[]): Grille {
+  const grille: Grille = {}
+  for (const { key } of JOURS) grille[key] = []
+  for (const f of fenetres) {
+    if (!grille[f.jour]) grille[f.jour] = []
+    grille[f.jour].push({ debut: f.debut.slice(0, 5), fin: f.fin.slice(0, 5) })
+  }
+  return grille
+}
+
+function grillesEgales(a: Grille, b: Grille) {
+  return JSON.stringify(a) === JSON.stringify(b)
 }
 
 export default function TypeRdvFenetresForm({
@@ -38,13 +55,13 @@ export default function TypeRdvFenetresForm({
   fenetresInitiales: Fenetre[]
   exceptionsInitiales: Exception[]
 }) {
-  const [fenetres, setFenetres] = useState(fenetresInitiales)
-  const [exceptions, setExceptions] = useState(exceptionsInitiales)
-  const [jour, setJour] = useState('mardi')
-  const [debut, setDebut] = useState('10:00')
-  const [fin, setFin] = useState('12:00')
-  const [ajoutFenetreEnCours, setAjoutFenetreEnCours] = useState(false)
+  const [grille, setGrille] = useState<Grille>(() => versGrille(fenetresInitiales))
+  const [grilleSauvegardee, setGrilleSauvegardee] = useState<Grille>(() =>
+    versGrille(fenetresInitiales)
+  )
+  const [saving, setSaving] = useState(false)
 
+  const [exceptions, setExceptions] = useState(exceptionsInitiales)
   const [dateDebut, setDateDebut] = useState('')
   const [dateFin, setDateFin] = useState('')
   const [exceptionFerme, setExceptionFerme] = useState(true)
@@ -56,47 +73,85 @@ export default function TypeRdvFenetresForm({
   const [erreur, setErreur] = useState('')
   const router = useRouter()
 
-  const ajouterFenetre = async () => {
-    setAjoutFenetreEnCours(true)
-    setErreur('')
-    setMessage('')
+  const dirty = useMemo(() => !grillesEgales(grille, grilleSauvegardee), [grille, grilleSauvegardee])
 
-    const res = await fetch('/api/pharmacie/types-rdv-horaires', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ pharmacieId, typeRdvId, jour, debut, fin }),
-    })
-    const data = await res.json()
-    setAjoutFenetreEnCours(false)
-
-    if (!res.ok) {
-      setErreur(typeof data.error === 'string' ? data.error : "Erreur lors de l'ajout")
-      return
-    }
-
-    setFenetres((prev) => [...prev, data.fenetre])
-    setMessage(`Fenêtre ajoutée — ${data.creneauxCount} créneaux régénérés ✓`)
-    router.refresh()
+  const toggleJour = (jour: string) => {
+    setGrille((prev) => ({
+      ...prev,
+      [jour]: prev[jour].length > 0 ? [] : [{ ...PLAGE_DEFAUT }],
+    }))
   }
 
-  const retirerFenetre = async (id: string) => {
+  const ajouterPlage = (jour: string) => {
+    setGrille((prev) => {
+      const plages = prev[jour] ?? []
+      const derniere = plages[plages.length - 1]
+      // Suggestion : juste après la dernière plage du jour, sinon la plage par défaut.
+      const suggestion =
+        derniere && derniere.fin <= '18:00'
+          ? { debut: derniere.fin, fin: '19:00' }
+          : { ...PLAGE_DEFAUT }
+      return { ...prev, [jour]: [...plages, suggestion] }
+    })
+  }
+
+  const retirerPlage = (jour: string, index: number) => {
+    setGrille((prev) => ({
+      ...prev,
+      [jour]: prev[jour].filter((_, i) => i !== index),
+    }))
+  }
+
+  const updatePlage = (jour: string, index: number, champ: 'debut' | 'fin', valeur: string) => {
+    setGrille((prev) => {
+      const plages = [...prev[jour]]
+      plages[index] = { ...plages[index], [champ]: valeur }
+      return { ...prev, [jour]: plages }
+    })
+  }
+
+  /** Copie les plages du jour donné sur tous les autres jours, comme pour
+   * les horaires généraux de la pharmacie. */
+  const copierSurTousLesJours = (jourSource: string) => {
+    const plagesSource = grille[jourSource]
+    if (!plagesSource || plagesSource.length === 0) return
+    setGrille((prev) => {
+      const next = { ...prev }
+      for (const { key } of JOURS) {
+        if (key === jourSource) continue
+        next[key] = plagesSource.map((p) => ({ ...p }))
+      }
+      return next
+    })
+  }
+
+  const enregistrer = async () => {
+    if (!dirty || saving) return
+    setSaving(true)
     setErreur('')
     setMessage('')
 
+    const fenetresAEnvoyer = JOURS.flatMap(({ key }) =>
+      grille[key].map((p) => ({ jour: key, debut: p.debut, fin: p.fin }))
+    )
+
     const res = await fetch('/api/pharmacie/types-rdv-horaires', {
-      method: 'DELETE',
+      method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id, pharmacieId }),
+      body: JSON.stringify({ pharmacieId, typeRdvId, fenetres: fenetresAEnvoyer }),
     })
     const data = await res.json()
+    setSaving(false)
 
     if (!res.ok) {
-      setErreur(typeof data.error === 'string' ? data.error : 'Erreur lors de la suppression')
+      setErreur(typeof data.error === 'string' ? data.error : "Erreur lors de l'enregistrement")
       return
     }
 
-    setFenetres((prev) => prev.filter((f) => f.id !== id))
-    setMessage(`Fenêtre retirée — ${data.creneauxCount} créneaux régénérés ✓`)
+    const grilleFinale = versGrille(data.fenetres ?? [])
+    setGrille(grilleFinale)
+    setGrilleSauvegardee(grilleFinale)
+    setMessage(`Créneaux spécifiques enregistrés — ${data.creneauxCount} créneaux régénérés ✓`)
     router.refresh()
   }
 
@@ -161,67 +216,93 @@ export default function TypeRdvFenetresForm({
   return (
     <div className="mt-2 mb-1 pl-4 border-l-2 border-gray-200 space-y-4">
       <div>
-        <p className="text-xs font-medium text-gray-600 mb-1">
-          Fenêtres hebdomadaires (optionnel)
+        <p className="text-xs font-medium text-gray-600 mb-2">
+          Créneaux hebdomadaires spécifiques (optionnel) — laissez tout décoché pour proposer ce
+          type sur toute l&apos;amplitude d&apos;ouverture de la pharmacie.
         </p>
-        {fenetres.length === 0 ? (
-          <p className="text-xs text-gray-500 mb-2">
-            Aucune fenêtre définie : ce type reste proposé sur toute l&apos;amplitude
-            d&apos;ouverture de la pharmacie.
-          </p>
-        ) : (
-          <ul className="space-y-1 mb-2">
-            {fenetres.map((f) => (
-              <li key={f.id} className="flex items-center justify-between text-xs">
-                <span>
-                  {libelleJour(f.jour)} {f.debut.slice(0, 5)}–{f.fin.slice(0, 5)}
-                </span>
-                <button
-                  type="button"
-                  onClick={() => retirerFenetre(f.id)}
-                  className="text-red-600 underline"
-                >
-                  Retirer
-                </button>
-              </li>
-            ))}
-          </ul>
-        )}
 
-        <div className="flex flex-wrap items-center gap-2">
-          <select
-            value={jour}
-            onChange={(e) => setJour(e.target.value)}
-            className="border rounded px-2 py-1 text-xs"
-          >
-            {JOURS.map((j) => (
-              <option key={j.key} value={j.key}>
-                {j.label}
-              </option>
-            ))}
-          </select>
-          <input
-            type="time"
-            value={debut}
-            onChange={(e) => setDebut(e.target.value)}
-            className="border rounded px-2 py-1 text-xs"
-          />
-          <span className="text-xs text-gray-500">à</span>
-          <input
-            type="time"
-            value={fin}
-            onChange={(e) => setFin(e.target.value)}
-            className="border rounded px-2 py-1 text-xs"
-          />
-          <button
-            type="button"
-            onClick={ajouterFenetre}
-            disabled={ajoutFenetreEnCours}
-            className="text-xs bg-black text-white px-2 py-1 rounded disabled:opacity-50"
-          >
-            {ajoutFenetreEnCours ? '…' : '+ Ajouter'}
-          </button>
+        <div className="space-y-2">
+          {JOURS.map(({ key, label }) => {
+            const plages = grille[key] ?? []
+            const actif = plages.length > 0
+            return (
+              <div
+                key={key}
+                className="flex flex-col gap-1.5 py-1.5 border-b border-gray-100 last:border-0"
+              >
+                <div className="flex flex-col sm:flex-row sm:items-center gap-1.5 sm:gap-2">
+                  <label className="flex items-center gap-2 sm:w-24 shrink-0 text-xs">
+                    <input
+                      type="checkbox"
+                      checked={actif}
+                      onChange={() => toggleJour(key)}
+                      className="rounded border-gray-300"
+                    />
+                    {label}
+                  </label>
+
+                  {!actif && (
+                    <span className="pl-6 sm:pl-0 text-[11px] text-gray-400">Aucun</span>
+                  )}
+
+                  {actif && (
+                    <div className="flex flex-col gap-1.5 pl-6 sm:pl-0">
+                      {plages.map((plage, index) => (
+                        <div key={index} className="flex items-center gap-1.5">
+                          <input
+                            type="time"
+                            value={plage.debut}
+                            onChange={(e) => updatePlage(key, index, 'debut', e.target.value)}
+                            className="border rounded px-2 py-1 text-xs"
+                          />
+                          <span className="text-[11px] text-gray-500">à</span>
+                          <input
+                            type="time"
+                            value={plage.fin}
+                            onChange={(e) => updatePlage(key, index, 'fin', e.target.value)}
+                            className="border rounded px-2 py-1 text-xs"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => retirerPlage(key, index)}
+                            className="text-red-600 text-[11px] underline shrink-0"
+                          >
+                            Retirer
+                          </button>
+                        </div>
+                      ))}
+                      <div className="flex flex-wrap items-center gap-3">
+                        <button
+                          type="button"
+                          onClick={() => ajouterPlage(key)}
+                          className="text-[11px] underline text-gray-500 w-fit py-1"
+                        >
+                          + Ajouter une plage
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => copierSurTousLesJours(key)}
+                          className="text-[11px] underline text-gray-500 w-fit py-1"
+                        >
+                          Copier sur tous les jours
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )
+          })}
         </div>
+
+        <button
+          type="button"
+          onClick={() => void enregistrer()}
+          disabled={saving || !dirty}
+          className="mt-3 text-xs bg-black text-white px-3 py-1.5 rounded disabled:opacity-40 disabled:cursor-not-allowed"
+        >
+          {saving ? 'Enregistrement...' : 'Enregistrer les créneaux spécifiques'}
+        </button>
       </div>
 
       <div>
