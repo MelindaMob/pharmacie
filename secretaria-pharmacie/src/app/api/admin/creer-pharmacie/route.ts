@@ -128,7 +128,8 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Non autorisé' }, { status: 403 })
   }
 
-  const { nom, email, telephone, groupementId, retellPhoneNumber } = await request.json()
+  const { nom, email, telephone, groupementId, retellPhoneNumber, numeroGarde } =
+    await request.json()
 
   if (!nom || !email || !telephone) {
     return NextResponse.json({ error: 'Champs manquants' }, { status: 400 })
@@ -189,6 +190,12 @@ export async function POST(request: NextRequest) {
       : null
   if (retell) {
     payload.retell_phone_number = retell
+  }
+
+  const garde =
+    typeof numeroGarde === 'string' && numeroGarde.trim() ? numeroGarde.trim() : null
+  if (garde) {
+    payload.numero_garde = garde
   }
 
   let { data: pharmacie, error: pharmacieError } = await supabase

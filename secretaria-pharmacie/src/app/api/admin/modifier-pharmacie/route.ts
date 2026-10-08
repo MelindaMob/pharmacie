@@ -22,6 +22,7 @@ export async function PATCH(request: NextRequest) {
     lng,
     telephone,
     retellPhoneNumber,
+    numeroGarde,
     email,
   } = body as {
     pharmacieId?: string
@@ -31,6 +32,7 @@ export async function PATCH(request: NextRequest) {
     lng?: number
     telephone?: string
     retellPhoneNumber?: string
+    numeroGarde?: string
     email?: string
   }
 
@@ -57,6 +59,10 @@ export async function PATCH(request: NextRequest) {
       typeof retellPhoneNumber === 'string' && retellPhoneNumber.trim()
         ? retellPhoneNumber.trim()
         : null
+  }
+  if (numeroGarde !== undefined) {
+    updates.numero_garde =
+      typeof numeroGarde === 'string' && numeroGarde.trim() ? numeroGarde.trim() : null
   }
 
   if (Object.keys(updates).length > 0) {

@@ -56,6 +56,18 @@ export default async function AidePage() {
           </p>
         </Section>
 
+        <Section id="garde" titre="Mode garde">
+          <p>
+            Programmez les périodes où votre pharmacie est de garde. Pendant ces plages, Paul
+            distingue les vraies urgences (transférées vers le numéro de la pharmacie de garde)
+            des autres appels. En dehors de ces périodes, Paul fonctionne normalement.
+          </p>
+          <p>
+            Le numéro de transfert est renseigné par Secretar.IA. Sans ce numéro, le mode garde
+            reste indisponible.
+          </p>
+        </Section>
+
         <Section id="types-rdv" titre="Types de rendez-vous proposés">
           <p>
             Cochez les prestations que votre pharmacie propose. Vous pouvez ajuster la durée de

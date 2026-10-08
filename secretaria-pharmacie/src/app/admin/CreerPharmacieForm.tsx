@@ -13,6 +13,8 @@ export default function CreerPharmacieForm({ groupements }: { groupements: Group
   const [email, setEmail] = useState('')
   const [telephone, setTelephone] = useState('')
   const [retellPhoneNumber, setRetellPhoneNumber] = useState('')
+  const [gardeActive, setGardeActive] = useState(false)
+  const [numeroGarde, setNumeroGarde] = useState('')
   const [groupementId, setGroupementId] = useState('')
   const [loading, setLoading] = useState(false)
   const [message, setMessage] = useState('')
@@ -24,6 +26,10 @@ export default function CreerPharmacieForm({ groupements }: { groupements: Group
       setErreur('Merci de remplir tous les champs obligatoires')
       return
     }
+    if (gardeActive && !numeroGarde.trim()) {
+      setErreur('Indiquez le numéro de la pharmacie de garde, ou désactivez le mode garde')
+      return
+    }
 
     setLoading(true)
     setErreur('')
@@ -32,7 +38,14 @@ export default function CreerPharmacieForm({ groupements }: { groupements: Group
     const res = await fetch('/api/admin/creer-pharmacie', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ nom, email, telephone, groupementId, retellPhoneNumber }),
+      body: JSON.stringify({
+        nom,
+        email,
+        telephone,
+        groupementId,
+        retellPhoneNumber,
+        numeroGarde: gardeActive ? numeroGarde.trim() : '',
+      }),
     })
     const data = await res.json()
 
@@ -52,6 +65,8 @@ export default function CreerPharmacieForm({ groupements }: { groupements: Group
     setEmail('')
     setTelephone('')
     setRetellPhoneNumber('')
+    setGardeActive(false)
+    setNumeroGarde('')
     setGroupementId('')
     router.refresh()
   }
@@ -82,6 +97,27 @@ export default function CreerPharmacieForm({ groupements }: { groupements: Group
           onChange={(e) => setRetellPhoneNumber(e.target.value)}
           className={`${inputClass} col-span-2`}
         />
+        <label className="col-span-2 flex items-center gap-2 text-sm text-[var(--color-ink)] cursor-pointer select-none">
+          <input
+            type="checkbox"
+            checked={gardeActive}
+            onChange={(e) => {
+              setGardeActive(e.target.checked)
+              if (!e.target.checked) setNumeroGarde('')
+            }}
+            className="rounded border-[var(--color-line)]"
+          />
+          Mode garde activé
+        </label>
+        {gardeActive && (
+          <input
+            type="tel"
+            placeholder="Numéro de la pharmacie de garde (transfert des urgences)"
+            value={numeroGarde}
+            onChange={(e) => setNumeroGarde(e.target.value)}
+            className={`${inputClass} col-span-2`}
+          />
+        )}
         <input
           type="email"
           placeholder="Email de connexion"

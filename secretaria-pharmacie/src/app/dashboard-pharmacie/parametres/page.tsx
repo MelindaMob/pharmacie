@@ -1,15 +1,24 @@
+import { createClient as createAdminClient } from '@supabase/supabase-js'
 import { createClient } from '@/lib/supabase/server'
 import { getUserRole } from '@/lib/auth/getRole'
 import { redirect } from 'next/navigation'
 import DashboardNav from '../DashboardNav'
 import HorairesForm from '../HorairesForm'
 import HorairesExceptionnelsForm from './HorairesExceptionnelsForm'
+import GardeForm from './GardeForm'
 import TypesRdvForm from '../TypesRdvForm'
 import DelaiAnnulationForm from '../DelaiAnnulationForm'
 import { compterNonLusPharmacie } from '@/lib/messages/nonLus'
 import { auMoinsUnJourOuvert } from '@/lib/pharmacie/onboarding'
 
 export const dynamic = 'force-dynamic'
+
+// Tables à RLS sans policy (types_rdv_horaires, types_rdv_exceptions, gardes_periodes) :
+// lues ici côté serveur avec la clé service role, toujours filtrées par la pharmacie connectée.
+const supabaseAdmin = createAdminClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!
+)
 
 export default async function ParametresPharmaciePage() {
   const role = await getUserRole()
@@ -19,7 +28,7 @@ export default async function ParametresPharmaciePage() {
 
   const { data: pharmacie } = await supabase
     .from('pharmacies')
-    .select('horaires_ouverture, adresse, delai_annulation_heures')
+    .select('horaires_ouverture, adresse, delai_annulation_heures, numero_garde')
     .eq('id', role.id)
     .single()
 
@@ -36,16 +45,20 @@ export default async function ParametresPharmaciePage() {
 
   const typeIds = (typesRdvData ?? []).map((t) => t.id)
 
-  const [{ data: fenetresData }, { data: exceptionsData }, { data: exceptions }] =
-    await Promise.all([
+  const [
+    { data: fenetresData },
+    { data: exceptionsData },
+    { data: exceptions },
+    { data: gardesData },
+  ] = await Promise.all([
       typeIds.length > 0
-        ? supabase
+        ? supabaseAdmin
             .from('types_rdv_horaires')
             .select('id, type_rdv_id, jour, debut, fin')
             .in('type_rdv_id', typeIds)
         : Promise.resolve({ data: [] as { id: string; type_rdv_id: string; jour: string; debut: string; fin: string }[] }),
       typeIds.length > 0
-        ? supabase
+        ? supabaseAdmin
             .from('types_rdv_exceptions')
             .select('id, type_rdv_id, date_debut, date_fin, ferme, debut, fin')
             .in('type_rdv_id', typeIds)
@@ -64,6 +77,11 @@ export default async function ParametresPharmaciePage() {
         .from('horaires_exceptionnels')
         .select('id, date, ferme, horaires_speciaux')
         .eq('pharmacie_id', role.id),
+      supabaseAdmin
+        .from('gardes_periodes')
+        .select('id, debut, fin')
+        .eq('pharmacie_id', role.id)
+        .gt('fin', new Date().toISOString()),
     ])
 
   const fenetresParTypeId: Record<string, { id: string; jour: string; debut: string; fin: string }[]> = {}
@@ -104,6 +122,11 @@ export default async function ParametresPharmaciePage() {
           horairesInitiaux={pharmacie?.horaires_ouverture ?? {}}
         />
         <HorairesExceptionnelsForm pharmacieId={role.id} exceptions={exceptions ?? []} />
+        <GardeForm
+          pharmacieId={role.id}
+          numeroGarde={pharmacie?.numero_garde ?? null}
+          periodes={gardesData ?? []}
+        />
         <TypesRdvForm
           pharmacieId={role.id}
           catalogue={catalogue ?? []}

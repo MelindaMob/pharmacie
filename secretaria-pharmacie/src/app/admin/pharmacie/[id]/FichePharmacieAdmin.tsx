@@ -11,6 +11,7 @@ type PharmacieAdmin = {
   adresse: string
   telephone: string
   retell_phone_number: string | null
+  numero_garde: string | null
   email: string
   groupement_nom: string | null
   horaires_ouverture: Record<string, { debut: string; fin: string } | null> | null
@@ -36,6 +37,8 @@ export default function FichePharmacieAdmin({ pharmacie }: { pharmacie: Pharmaci
   const [retellPhoneNumber, setRetellPhoneNumber] = useState(
     pharmacie.retell_phone_number ?? ''
   )
+  const [numeroGarde, setNumeroGarde] = useState(pharmacie.numero_garde ?? '')
+  const [gardeActive, setGardeActive] = useState(!!pharmacie.numero_garde?.trim())
   const [email, setEmail] = useState(pharmacie.email ?? '')
   const [loading, setLoading] = useState(false)
   const [message, setMessage] = useState('')
@@ -46,11 +49,18 @@ export default function FichePharmacieAdmin({ pharmacie }: { pharmacie: Pharmaci
     setAdresse(pharmacie.adresse ?? '')
     setTelephone(pharmacie.telephone ?? '')
     setRetellPhoneNumber(pharmacie.retell_phone_number ?? '')
+    setNumeroGarde(pharmacie.numero_garde ?? '')
+    setGardeActive(!!pharmacie.numero_garde?.trim())
     setEmail(pharmacie.email ?? '')
     setCoords(null)
   }, [pharmacie])
 
   const enregistrer = async () => {
+    if (gardeActive && !numeroGarde.trim()) {
+      setErreur('Indiquez le numéro de la pharmacie de garde, ou désactivez le mode garde')
+      return
+    }
+
     setLoading(true)
     setErreur('')
     setMessage('')
@@ -64,6 +74,7 @@ export default function FichePharmacieAdmin({ pharmacie }: { pharmacie: Pharmaci
         adresse,
         telephone,
         retellPhoneNumber,
+        numeroGarde: gardeActive ? numeroGarde.trim() : '',
         email,
         ...(coords ? { lat: coords.lat, lng: coords.lng } : {}),
       }),
@@ -155,6 +166,31 @@ export default function FichePharmacieAdmin({ pharmacie }: { pharmacie: Pharmaci
             />
           </div>
         </div>
+
+        <label className="flex items-center gap-2 text-sm text-[var(--color-ink)] cursor-pointer select-none">
+          <input
+            type="checkbox"
+            checked={gardeActive}
+            onChange={(e) => {
+              setGardeActive(e.target.checked)
+              if (!e.target.checked) setNumeroGarde('')
+            }}
+            className="rounded border-[var(--color-line)]"
+          />
+          Mode garde activé
+        </label>
+        {gardeActive && (
+          <div>
+            <label className="ui-label">Numéro de la pharmacie de garde (transfert des urgences)</label>
+            <input
+              type="tel"
+              value={numeroGarde}
+              onChange={(e) => setNumeroGarde(e.target.value)}
+              className="ui-input"
+              placeholder="Ex : 01 23 45 67 89"
+            />
+          </div>
+        )}
 
         {erreur && <p className="text-red-600 text-sm">{erreur}</p>}
         {message && <p className="text-[var(--color-accent)] text-sm">{message}</p>}
