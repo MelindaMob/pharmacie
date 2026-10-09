@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import AdresseAutocomplete from '@/components/AdresseAutocomplete'
+import { normaliserNumeroFrancais } from '@/lib/telephone'
 
 type PharmacieAdmin = {
   id: string
@@ -14,8 +15,32 @@ type PharmacieAdmin = {
   numero_garde: string | null
   email: string
   groupement_nom: string | null
-  horaires_ouverture: Record<string, { debut: string; fin: string } | null> | null
+  horaires_ouverture: Record<
+    string,
+    { debut: string; fin: string }[] | { debut: string; fin: string } | null
+  > | null
   types_rdv: { id: string; nom: string; duree_minutes: number }[]
+}
+
+type Plage = { debut: string; fin: string }
+
+function versPlages(valeur: unknown): Plage[] {
+  if (!valeur) return []
+  if (Array.isArray(valeur)) {
+    return valeur.filter(
+      (p): p is Plage =>
+        !!p && typeof p === 'object' && typeof p.debut === 'string' && typeof p.fin === 'string'
+    )
+  }
+  if (typeof valeur === 'object' && valeur !== null && 'debut' in valeur && 'fin' in valeur) {
+    const p = valeur as Plage
+    if (typeof p.debut === 'string' && typeof p.fin === 'string') return [p]
+  }
+  return []
+}
+
+function libellePlage(p: Plage) {
+  return `${p.debut.slice(0, 5)} – ${p.fin.slice(0, 5)}`
 }
 
 const JOURS = [
@@ -37,7 +62,9 @@ export default function FichePharmacieAdmin({ pharmacie }: { pharmacie: Pharmaci
   const [retellPhoneNumber, setRetellPhoneNumber] = useState(
     pharmacie.retell_phone_number ?? ''
   )
-  const [numeroGarde, setNumeroGarde] = useState(pharmacie.numero_garde ?? '')
+  const [numeroGarde, setNumeroGarde] = useState(
+    pharmacie.numero_garde ? normaliserNumeroFrancais(pharmacie.numero_garde) : ''
+  )
   const [gardeActive, setGardeActive] = useState(!!pharmacie.numero_garde?.trim())
   const [email, setEmail] = useState(pharmacie.email ?? '')
   const [loading, setLoading] = useState(false)
@@ -49,7 +76,9 @@ export default function FichePharmacieAdmin({ pharmacie }: { pharmacie: Pharmaci
     setAdresse(pharmacie.adresse ?? '')
     setTelephone(pharmacie.telephone ?? '')
     setRetellPhoneNumber(pharmacie.retell_phone_number ?? '')
-    setNumeroGarde(pharmacie.numero_garde ?? '')
+    setNumeroGarde(
+      pharmacie.numero_garde ? normaliserNumeroFrancais(pharmacie.numero_garde) : ''
+    )
     setGardeActive(!!pharmacie.numero_garde?.trim())
     setEmail(pharmacie.email ?? '')
     setCoords(null)
@@ -74,7 +103,7 @@ export default function FichePharmacieAdmin({ pharmacie }: { pharmacie: Pharmaci
         adresse,
         telephone,
         retellPhoneNumber,
-        numeroGarde: gardeActive ? numeroGarde.trim() : '',
+        numeroGarde: gardeActive ? normaliserNumeroFrancais(numeroGarde) : '',
         email,
         ...(coords ? { lat: coords.lat, lng: coords.lng } : {}),
       }),
@@ -185,9 +214,10 @@ export default function FichePharmacieAdmin({ pharmacie }: { pharmacie: Pharmaci
             <input
               type="tel"
               value={numeroGarde}
-              onChange={(e) => setNumeroGarde(e.target.value)}
+              onChange={(e) => setNumeroGarde(normaliserNumeroFrancais(e.target.value))}
               className="ui-input"
-              placeholder="Ex : 01 23 45 67 89"
+              placeholder="Ex : +33652107571"
+              inputMode="tel"
             />
           </div>
         )}
@@ -211,12 +241,16 @@ export default function FichePharmacieAdmin({ pharmacie }: { pharmacie: Pharmaci
         Object.keys(pharmacie.horaires_ouverture).length > 0 ? (
           <div className="space-y-1.5 font-[family-name:var(--font-mono)] text-sm">
             {JOURS.map(([key, label]) => {
-              const h = pharmacie.horaires_ouverture?.[key]
+              const plages = versPlages(pharmacie.horaires_ouverture?.[key])
               return (
                 <div key={key} className="flex justify-between gap-4">
                   <span className="text-[var(--color-ink-soft)]">{label}</span>
-                  <span className={h ? 'text-[var(--color-ink)]' : 'text-[var(--color-line)]'}>
-                    {h ? `${h.debut} – ${h.fin}` : 'Fermé'}
+                  <span
+                    className={
+                      plages.length > 0 ? 'text-[var(--color-ink)] text-right' : 'text-[var(--color-line)]'
+                    }
+                  >
+                    {plages.length > 0 ? plages.map(libellePlage).join(' · ') : 'Fermé'}
                   </span>
                 </div>
               )

@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js'
 import { NextRequest, NextResponse } from 'next/server'
 import { getUserRole } from '@/lib/auth/getRole'
+import { normaliserNumeroFrancais } from '@/lib/telephone'
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -61,8 +62,9 @@ export async function PATCH(request: NextRequest) {
         : null
   }
   if (numeroGarde !== undefined) {
-    updates.numero_garde =
-      typeof numeroGarde === 'string' && numeroGarde.trim() ? numeroGarde.trim() : null
+    const garde =
+      typeof numeroGarde === 'string' ? normaliserNumeroFrancais(numeroGarde) : ''
+    updates.numero_garde = garde || null
   }
 
   if (Object.keys(updates).length > 0) {

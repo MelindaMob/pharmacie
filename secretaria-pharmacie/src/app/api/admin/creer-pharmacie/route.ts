@@ -1,6 +1,7 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 import { NextRequest, NextResponse } from 'next/server'
 import { getUserRole } from '@/lib/auth/getRole'
+import { normaliserNumeroFrancais } from '@/lib/telephone'
 import { randomBytes } from 'crypto'
 
 function adminClient(): SupabaseClient {
@@ -193,7 +194,7 @@ export async function POST(request: NextRequest) {
   }
 
   const garde =
-    typeof numeroGarde === 'string' && numeroGarde.trim() ? numeroGarde.trim() : null
+    typeof numeroGarde === 'string' ? normaliserNumeroFrancais(numeroGarde) : ''
   if (garde) {
     payload.numero_garde = garde
   }

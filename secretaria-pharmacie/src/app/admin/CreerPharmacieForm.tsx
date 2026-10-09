@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { normaliserNumeroFrancais } from '@/lib/telephone'
 
 type Groupement = { id: string; nom: string }
 
@@ -44,7 +45,7 @@ export default function CreerPharmacieForm({ groupements }: { groupements: Group
         telephone,
         groupementId,
         retellPhoneNumber,
-        numeroGarde: gardeActive ? numeroGarde.trim() : '',
+        numeroGarde: gardeActive ? normaliserNumeroFrancais(numeroGarde) : '',
       }),
     })
     const data = await res.json()
@@ -112,10 +113,11 @@ export default function CreerPharmacieForm({ groupements }: { groupements: Group
         {gardeActive && (
           <input
             type="tel"
-            placeholder="Numéro de la pharmacie de garde (transfert des urgences)"
+            placeholder="Numéro de garde — ex. 0652107571"
             value={numeroGarde}
-            onChange={(e) => setNumeroGarde(e.target.value)}
+            onChange={(e) => setNumeroGarde(normaliserNumeroFrancais(e.target.value))}
             className={`${inputClass} col-span-2`}
+            inputMode="tel"
           />
         )}
         <input
