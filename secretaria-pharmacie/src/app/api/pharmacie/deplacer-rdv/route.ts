@@ -30,7 +30,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Non autorisé' }, { status: 403 })
   }
 
-  if (!(await creneauADeLaPlace(nouveauCreneauId))) {
+  if (!(await creneauADeLaPlace(nouveauCreneauId, reservationId))) {
     return NextResponse.json({ error: "Le nouveau créneau n'est plus disponible" }, { status: 409 })
   }
 
@@ -56,10 +56,18 @@ export async function POST(request: NextRequest) {
 
   const ancienCreneauId = reservation.creneau_id
 
-  await supabaseAdmin
+  const { error: deplacementError } = await supabaseAdmin
     .from('reservations')
     .update({ creneau_id: nouveauCreneauId })
     .eq('id', reservationId)
+
+  if (deplacementError) {
+    const complet = deplacementError.code === 'P0001' || deplacementError.code === '23505'
+    return NextResponse.json(
+      { error: complet ? "Le nouveau créneau n'est plus disponible" : 'Erreur lors du déplacement' },
+      { status: complet ? 409 : 500 }
+    )
+  }
 
   await recalculerStatutCreneau(ancienCreneauId)
   await recalculerStatutCreneau(nouveauCreneauId)

@@ -39,10 +39,24 @@ async function capaciteDuCreneau(creneauId: string): Promise<number> {
 
 /**
  * Un créneau peut-il encore accueillir une réservation de plus ?
- * À utiliser comme garde-fou avant toute création/déplacement de RDV —
- * ne jamais se fier au seul champ `statut`, qui n'est qu'un cache.
+ * Source de vérité = la base (fonction SQL `creneau_a_de_la_place`) :
+ *  - type avec équipe assignée → il faut un professionnel libre sur ce créneau
+ *    (les créneaux des autres types qui se chevauchent comptent aussi) ;
+ *  - type sans équipe → ancien comportement (réservations actives < capacité).
+ * `ignorerReservationId` : à passer lors d'un déplacement (la réservation déplacée
+ * ne doit pas se compter elle-même). Fallback sur l'ancien calcul si la migration SQL n'est pas encore passée.
  */
-export async function creneauADeLaPlace(creneauId: string): Promise<boolean> {
+export async function creneauADeLaPlace(
+  creneauId: string,
+  ignorerReservationId: string | null = null
+): Promise<boolean> {
+  const supabase = adminClient()
+  const { data, error } = await supabase.rpc('creneau_a_de_la_place', {
+    p_creneau_id: creneauId,
+    p_ignorer_reservation: ignorerReservationId,
+  })
+  if (!error && typeof data === 'boolean') return data
+
   const [count, capacite] = await Promise.all([
     compterReservationsActives(creneauId),
     capaciteDuCreneau(creneauId),
@@ -51,18 +65,22 @@ export async function creneauADeLaPlace(creneauId: string): Promise<boolean> {
 }
 
 /**
- * Recalcule et écrit le statut ('disponible' ou 'reserve') d'un créneau à
- * partir du nombre réel de réservations actives comparé à sa capacité.
- * À appeler après toute création, annulation ou déplacement de RDV touchant
- * ce créneau — jamais fixer 'disponible'/'reserve' à la main.
+ * Recalcule le statut ('disponible' / 'reserve') du créneau ET de tous les
+ * créneaux qui le chevauchent (un professionnel pris sur un créneau l'est aussi
+ * sur les autres types au même moment). À appeler après toute création,
+ * annulation ou déplacement de RDV — jamais fixer le statut à la main.
  */
 export async function recalculerStatutCreneau(creneauId: string): Promise<void> {
+  const supabase = adminClient()
+  const { error } = await supabase.rpc('recalculer_autour_creneau', {
+    p_creneau_id: creneauId,
+  })
+  if (!error) return
+
   const [count, capacite] = await Promise.all([
     compterReservationsActives(creneauId),
     capaciteDuCreneau(creneauId),
   ])
-
-  const supabase = adminClient()
   await supabase
     .from('creneaux')
     .update({ statut: count >= capacite ? 'reserve' : 'disponible' })

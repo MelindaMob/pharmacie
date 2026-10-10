@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { regenererCreneauxClient } from '@/lib/creneaux/regenererCreneauxClient'
 import TypeRdvFenetresForm from './TypeRdvFenetresForm'
+import TypeRdvEquipe, { type Professionnel } from './TypeRdvEquipe'
 
 type CatalogueItem = {
   id: string
@@ -40,6 +41,8 @@ export default function TypesRdvForm({
   typesRdv,
   fenetresParTypeId,
   exceptionsParTypeId,
+  equipe = [],
+  equipeParTypeId = {},
 }: {
   pharmacieId: string
   catalogue: CatalogueItem[]
@@ -49,6 +52,10 @@ export default function TypesRdvForm({
   fenetresParTypeId: Record<string, Fenetre[]>
   /** Dérogations exceptionnelles existantes, indexées par id de ligne types_rdv. */
   exceptionsParTypeId: Record<string, Exception[]>
+  /** Personnes de l'équipe (agendas par professionnel). */
+  equipe?: Professionnel[]
+  /** Ids des professionnels assignés, indexés par id de ligne types_rdv. */
+  equipeParTypeId?: Record<string, string[]>
 }) {
   const [lignes, setLignes] = useState<Record<string, TypeRdvLigne>>(() =>
     Object.fromEntries(typesRdv.map((t) => [t.catalogue_id, t]))
@@ -57,6 +64,7 @@ export default function TypesRdvForm({
   const [message, setMessage] = useState('')
   const [erreur, setErreur] = useState('')
   const [ouverts, setOuverts] = useState<Set<string>>(new Set())
+  const [equipes, setEquipes] = useState<Record<string, string[]>>(equipeParTypeId)
   const router = useRouter()
 
   const parCategorie = useMemo(() => {
@@ -247,6 +255,8 @@ export default function TypesRdvForm({
                   ligne && !DUREES_MINUTES.includes(ligne.duree_minutes)
                     ? [...DUREES_MINUTES, ligne.duree_minutes].sort((a, b) => a - b)
                     : DUREES_MINUTES
+                const equipeType = ligne ? (equipes[ligne.id] ?? []) : []
+                const aEquipe = equipeType.length > 0
                 const capacites =
                   ligne && !CAPACITES.includes(ligne.capacite)
                     ? [...CAPACITES, ligne.capacite].sort((a, b) => a - b)
@@ -282,6 +292,7 @@ export default function TypesRdvForm({
                             ))}
                           </select>
                         </div>
+                        {!aEquipe && (
                         <div className="flex items-center gap-1">
                           <select
                             value={ligne.capacite}
@@ -300,6 +311,7 @@ export default function TypesRdvForm({
                           </select>
                           <span className="text-xs text-gray-500">en même temps</span>
                         </div>
+                        )}
                         <button
                           type="button"
                           onClick={() => toggleOuvert(item.id)}
@@ -310,6 +322,15 @@ export default function TypesRdvForm({
                       </div>
                     )}
                     </div>
+                    {actif && ligne && equipe.length > 0 && (
+                      <TypeRdvEquipe
+                        pharmacieId={pharmacieId}
+                        typeRdvId={ligne.id}
+                        equipe={equipe}
+                        selection={equipeType}
+                        onChange={(ids) => setEquipes((prev) => ({ ...prev, [ligne.id]: ids }))}
+                      />
+                    )}
                     {actif && estOuvert && ligne && (
                       <TypeRdvFenetresForm
                         pharmacieId={pharmacieId}

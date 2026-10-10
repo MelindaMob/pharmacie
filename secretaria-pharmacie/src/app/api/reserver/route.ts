@@ -92,6 +92,11 @@ export async function POST(request: NextRequest) {
     .select('id, token_gestion')
     .single()
 
+  if (resaError?.code === 'P0001' || resaError?.code === '23505') {
+    // Plus aucun professionnel libre sur ce créneau (pris entre-temps)
+    return NextResponse.json({ error: "Ce créneau n'est plus disponible" }, { status: 409 })
+  }
+
   if (resaError || !reservation) {
     return NextResponse.json({ error: 'Erreur création réservation' }, { status: 500 })
   }

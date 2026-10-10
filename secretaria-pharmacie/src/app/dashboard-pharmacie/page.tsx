@@ -21,7 +21,7 @@ const SELECT_DISPO = 'id, debut, fin, statut, type_rdv_id, types_rdv(nom)'
 
 /** Toutes les réservations de la période, y compris sur un créneau encore disponible. */
 const SELECT_RESERVATIONS = `
-  id, client_nom, client_telephone, client_email, statut, canal, creneau_id,
+  id, client_nom, client_telephone, client_email, statut, canal, creneau_id, professionnel_id,
   creneaux!inner(id, debut, fin, statut, type_rdv_id, types_rdv(nom))
 `
 
@@ -32,6 +32,7 @@ type ReservationInfo = {
   client_email: string | null
   statut: string
   canal?: string
+  professionnel_id?: string | null
 }
 
 type CreneauRow = {
@@ -57,7 +58,12 @@ export default async function DashboardPharmaciePage() {
   const debutIso = debutPeriode.toISOString()
   const finIso = finPeriode.toISOString()
 
-  const [{ data: creneauxDispo }, { data: reservationsPeriode }, nbNonLus] = await Promise.all([
+  const [
+    { data: creneauxDispo },
+    { data: reservationsPeriode },
+    nbNonLus,
+    { data: professionnels },
+  ] = await Promise.all([
     supabaseAdmin
       .from('creneaux')
       .select(SELECT_DISPO)
@@ -75,6 +81,11 @@ export default async function DashboardPharmaciePage() {
       .lte('creneaux.debut', finIso)
       .limit(2000),
     compterNonLusPharmacie(role.id),
+    supabaseAdmin
+      .from('professionnels')
+      .select('id, nom, actif')
+      .eq('pharmacie_id', role.id)
+      .order('created_at', { ascending: true }),
   ])
 
   const creneauxParId = new Map<string, CreneauRow>()
@@ -109,6 +120,7 @@ export default async function DashboardPharmaciePage() {
       client_email: (r.client_email as string | null) ?? null,
       statut: r.statut as string,
       canal: r.canal as string | undefined,
+      professionnel_id: (r.professionnel_id as string | null) ?? null,
     }
 
     const existant = creneauxParId.get(creneau.id)
@@ -134,7 +146,11 @@ export default async function DashboardPharmaciePage() {
 
   return (
     <DashboardNav actif="calendrier" nbNonLus={nbNonLus}>
-      <DashboardCalendar creneaux={creneaux} pharmacieId={role.id} />
+      <DashboardCalendar
+        creneaux={creneaux}
+        pharmacieId={role.id}
+        professionnels={professionnels ?? []}
+      />
     </DashboardNav>
   )
 }

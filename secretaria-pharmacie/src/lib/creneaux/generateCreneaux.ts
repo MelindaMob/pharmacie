@@ -259,6 +259,11 @@ export async function generateCreneauxPourPharmacie(
     }
   }
 
+  // 3bis. Remet à jour les statuts (équipes : un créneau peut être « reserve » parce qu'un
+  // professionnel est pris sur un autre type au même moment). Sans effet si la migration
+  // SQL des professionnels n'est pas passée.
+  await supabase.rpc('recalculer_statuts_pharmacie', { p_pharmacie_id: pharmacieId })
+
   // 4. Effacer les anciens créneaux libres sur la période (on garde ceux avec un RDV)
   const debutPeriodeUtc = fromZonedTime(
     `${format(debutPeriodeParis, 'yyyy-MM-dd')} 00:00:00`,
@@ -325,6 +330,10 @@ export async function generateCreneauxPourPharmacie(
       return { success: false, count: 0, error: messageErreur(error) }
     }
   }
+
+  // 6. Les créneaux fraîchement insérés sont « disponible » par défaut : on recalcule
+  // pour tenir compte des RDV déjà pris et des professionnels occupés.
+  await supabase.rpc('recalculer_statuts_pharmacie', { p_pharmacie_id: pharmacieId })
 
   return { success: true, count: nouveauxCreneaux.length }
 }

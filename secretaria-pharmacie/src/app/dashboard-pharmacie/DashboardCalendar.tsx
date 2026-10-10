@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Calendar, dateFnsLocalizer, type View } from 'react-big-calendar'
 import { format, parse, startOfWeek, getDay } from 'date-fns'
@@ -25,6 +25,7 @@ type ReservationInfo = {
   client_email: string | null
   statut: string
   canal?: string
+  professionnel_id?: string | null
 }
 
 type Creneau = {
@@ -54,6 +55,7 @@ type CalendarEvent = {
     typeId: string
     typeNom: string
     debut: string
+    proNom?: string
     options?: { creneauId: string; typeNom: string }[]
   }
 }
@@ -213,6 +215,20 @@ function CalendarEventCard({
           {event.title}
         </p>
       )}
+      {!event.resource.estDispo && event.resource.proNom && (
+        <p
+          style={{
+            fontSize: '10px',
+            color: 'var(--color-ink-soft)',
+            lineHeight: 1.2,
+            whiteSpace: 'nowrap',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+          }}
+        >
+          {event.resource.proNom}
+        </p>
+      )}
     </div>
   )
 }
@@ -226,12 +242,16 @@ function reservationsPourFiltre(creneau: Creneau, filtre: FiltreStatut): Reserva
 export default function DashboardCalendar({
   creneaux,
   pharmacieId,
+  professionnels = [],
 }: {
   creneaux: Creneau[]
   pharmacieId: string
+  professionnels?: { id: string; nom: string; actif: boolean }[]
 }) {
   const router = useRouter()
   const [filtre, setFiltre] = useState<FiltreStatut>('confirme')
+  // 'tous' | id d'un professionnel | 'aucun' (RDV sans professionnel attribué)
+  const [filtrePro, setFiltrePro] = useState<string>('tous')
   const [view, setView] = useState<View>('week')
   const [date, setDate] = useState(() => new Date())
   const [reservationOuverte, setReservationOuverte] = useState<{
@@ -286,12 +306,28 @@ export default function DashboardCalendar({
     return map
   }, [typesDisponibles])
 
+  const nomParPro = useMemo(
+    () => new Map(professionnels.map((p) => [p.id, p.nom])),
+    [professionnels]
+  )
+
+  const correspondAuPro = useCallback(
+    (r: ReservationInfo) => {
+      if (filtrePro === 'tous') return true
+      if (filtrePro === 'aucun') return !r.professionnel_id
+      return r.professionnel_id === filtrePro
+    },
+    [filtrePro]
+  )
+
   const creneauxFiltres = useMemo(() => {
     if (filtre === 'disponible') {
       return creneaux.filter((c) => c.statut === 'disponible')
     }
-    return creneaux.filter((c) => c.reservations?.some((r) => r.statut === 'confirme'))
-  }, [creneaux, filtre])
+    return creneaux.filter((c) =>
+      c.reservations?.some((r) => r.statut === 'confirme' && correspondAuPro(r))
+    )
+  }, [creneaux, filtre, correspondAuPro])
 
   const events: CalendarEvent[] = useMemo(() => {
     if (filtre === 'disponible') {
@@ -328,7 +364,7 @@ export default function DashboardCalendar({
     }
 
     return creneauxFiltres.flatMap((c) => {
-      const resas = reservationsPourFiltre(c, filtre)
+      const resas = reservationsPourFiltre(c, filtre).filter(correspondAuPro)
       if (resas.length === 0) return []
 
       return resas.map((reservation) => ({
@@ -342,10 +378,13 @@ export default function DashboardCalendar({
           typeId: c.type_rdv_id,
           typeNom: c.types_rdv?.nom ?? '',
           debut: c.debut,
+          proNom: reservation.professionnel_id
+            ? nomParPro.get(reservation.professionnel_id)
+            : undefined,
         },
       }))
     })
-  }, [creneauxFiltres, filtre])
+  }, [creneauxFiltres, filtre, correspondAuPro, nomParPro])
 
   const calendarComponents = useMemo(
     () => ({
@@ -378,6 +417,22 @@ export default function DashboardCalendar({
             </button>
           ))}
         </div>
+        {professionnels.length > 0 && filtre === 'confirme' && (
+          <select
+            value={filtrePro}
+            onChange={(e) => setFiltrePro(e.target.value)}
+            className="ui-input !w-auto !py-2 !px-3 text-sm"
+            aria-label="Agenda de"
+          >
+            <option value="tous">Tous les agendas</option>
+            {professionnels.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.nom}
+              </option>
+            ))}
+            <option value="aucun">Sans attribution</option>
+          </select>
+        )}
         <button
           type="button"
           onClick={() => setAjoutLibreOuvert(true)}

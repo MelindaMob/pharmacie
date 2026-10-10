@@ -6,6 +6,7 @@ import DashboardNav from '../DashboardNav'
 import HorairesForm from '../HorairesForm'
 import HorairesExceptionnelsForm from './HorairesExceptionnelsForm'
 import GardeForm from './GardeForm'
+import EquipeForm from '../EquipeForm'
 import TypesRdvForm from '../TypesRdvForm'
 import DelaiAnnulationForm from '../DelaiAnnulationForm'
 import { compterNonLusPharmacie } from '@/lib/messages/nonLus'
@@ -50,6 +51,9 @@ export default async function ParametresPharmaciePage() {
     { data: exceptionsData },
     { data: exceptions },
     { data: gardesData },
+    { data: professionnelsData },
+    { data: liensEquipeData },
+    { data: horairesProsData },
   ] = await Promise.all([
       typeIds.length > 0
         ? supabaseAdmin
@@ -82,7 +86,34 @@ export default async function ParametresPharmaciePage() {
         .select('id, debut, fin')
         .eq('pharmacie_id', role.id)
         .gt('fin', new Date().toISOString()),
+      supabaseAdmin
+        .from('professionnels')
+        .select('id, nom, actif')
+        .eq('pharmacie_id', role.id)
+        .order('created_at', { ascending: true }),
+      typeIds.length > 0
+        ? supabaseAdmin
+            .from('types_rdv_professionnels')
+            .select('type_rdv_id, professionnel_id')
+            .in('type_rdv_id', typeIds)
+        : Promise.resolve({ data: [] as { type_rdv_id: string; professionnel_id: string }[] }),
+      supabaseAdmin
+        .from('professionnels_horaires')
+        .select('id, professionnel_id, jour, debut, fin, professionnels!inner(pharmacie_id)')
+        .eq('professionnels.pharmacie_id', role.id),
     ])
+
+  const horairesParPro: Record<string, { id: string; jour: string; debut: string; fin: string }[]> = {}
+  for (const h of horairesProsData ?? []) {
+    if (!horairesParPro[h.professionnel_id]) horairesParPro[h.professionnel_id] = []
+    horairesParPro[h.professionnel_id].push({ id: h.id, jour: h.jour, debut: h.debut, fin: h.fin })
+  }
+
+  const equipeParTypeId: Record<string, string[]> = {}
+  for (const l of liensEquipeData ?? []) {
+    if (!equipeParTypeId[l.type_rdv_id]) equipeParTypeId[l.type_rdv_id] = []
+    equipeParTypeId[l.type_rdv_id].push(l.professionnel_id)
+  }
 
   const fenetresParTypeId: Record<string, { id: string; jour: string; debut: string; fin: string }[]> = {}
   for (const f of fenetresData ?? []) {
@@ -127,6 +158,11 @@ export default async function ParametresPharmaciePage() {
           numeroGarde={pharmacie?.numero_garde ?? null}
           periodes={gardesData ?? []}
         />
+        <EquipeForm
+          pharmacieId={role.id}
+          professionnels={professionnelsData ?? []}
+          horairesParPro={horairesParPro}
+        />
         <TypesRdvForm
           pharmacieId={role.id}
           catalogue={catalogue ?? []}
@@ -139,6 +175,8 @@ export default async function ParametresPharmaciePage() {
           }[]}
           fenetresParTypeId={fenetresParTypeId}
           exceptionsParTypeId={exceptionsParTypeId}
+          equipe={professionnelsData ?? []}
+          equipeParTypeId={equipeParTypeId}
         />
         <DelaiAnnulationForm
           pharmacieId={role.id}

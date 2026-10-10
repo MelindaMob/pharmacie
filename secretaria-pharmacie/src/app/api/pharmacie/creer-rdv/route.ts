@@ -17,6 +17,9 @@ function messageErreurReservation(code: string | undefined, message: string | un
   if (code === '23505') {
     return 'Ce créneau est déjà réservé.'
   }
+  if (code === 'P0001') {
+    return 'Plus aucun professionnel disponible sur ce créneau.'
+  }
   if (message?.includes('client_email')) {
     return "Colonne client_email absente. Exécutez sql/reservations_client_email.sql dans Supabase."
   }
@@ -92,7 +95,7 @@ export async function POST(request: NextRequest) {
     await supabaseAdmin.from('clients').delete().eq('id', client.id)
     return NextResponse.json(
       { error: messageErreurReservation(resaError?.code, resaError?.message) },
-      { status: resaError?.code === '23505' ? 409 : 500 }
+      { status: resaError?.code === '23505' || resaError?.code === 'P0001' ? 409 : 500 }
     )
   }
 
