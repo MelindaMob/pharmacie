@@ -200,22 +200,20 @@ function CalendarEventCard({
           <span style={{ marginLeft: '4px' }}>{iconeCanal(event.resource.reservation?.canal)}</span>
         )}
       </p>
-      {!event.resource.estDispo && (
-        <p
-          style={{
-            fontSize: '12px',
-            fontWeight: 500,
-            color: 'var(--color-ink)',
-            lineHeight: 1.2,
-            whiteSpace: 'nowrap',
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
-          }}
-        >
-          {event.title}
-        </p>
-      )}
-      {!event.resource.estDispo && event.resource.proNom && (
+      <p
+        style={{
+          fontSize: '12px',
+          fontWeight: 500,
+          color: 'var(--color-ink)',
+          lineHeight: 1.2,
+          whiteSpace: 'nowrap',
+          overflow: 'hidden',
+          textOverflow: 'ellipsis',
+        }}
+      >
+        {event.title}
+      </p>
+      {event.resource.proNom && (
         <p
           style={{
             fontSize: '10px',
@@ -243,10 +241,13 @@ export default function DashboardCalendar({
   creneaux,
   pharmacieId,
   professionnels = [],
+  equipeParTypeId = {},
 }: {
   creneaux: Creneau[]
   pharmacieId: string
   professionnels?: { id: string; nom: string; actif: boolean }[]
+  /** Ids des professionnels assignés, indexés par id de type de RDV. */
+  equipeParTypeId?: Record<string, string[]>
 }) {
   const router = useRouter()
   const [filtre, setFiltre] = useState<FiltreStatut>('confirme')
@@ -320,14 +321,26 @@ export default function DashboardCalendar({
     [filtrePro]
   )
 
+  const creneauCorrespondAuPro = useCallback(
+    (typeRdvId: string) => {
+      if (filtrePro === 'tous') return true
+      const assigns = equipeParTypeId[typeRdvId] ?? []
+      if (filtrePro === 'aucun') return assigns.length === 0
+      return assigns.includes(filtrePro)
+    },
+    [filtrePro, equipeParTypeId]
+  )
+
   const creneauxFiltres = useMemo(() => {
     if (filtre === 'disponible') {
-      return creneaux.filter((c) => c.statut === 'disponible')
+      return creneaux.filter(
+        (c) => c.statut === 'disponible' && creneauCorrespondAuPro(c.type_rdv_id)
+      )
     }
     return creneaux.filter((c) =>
       c.reservations?.some((r) => r.statut === 'confirme' && correspondAuPro(r))
     )
-  }, [creneaux, filtre, correspondAuPro])
+  }, [creneaux, filtre, correspondAuPro, creneauCorrespondAuPro])
 
   const events: CalendarEvent[] = useMemo(() => {
     if (filtre === 'disponible') {
@@ -384,7 +397,7 @@ export default function DashboardCalendar({
         },
       }))
     })
-  }, [creneauxFiltres, filtre, correspondAuPro, nomParPro])
+  }, [creneauxFiltres, filtre, correspondAuPro, nomParPro, filtrePro])
 
   const calendarComponents = useMemo(
     () => ({
@@ -396,11 +409,27 @@ export default function DashboardCalendar({
     [filtre, couleurParType]
   )
 
+  const nomAgendaAffiche =
+    filtrePro === 'tous'
+      ? 'Tous les agendas'
+      : filtrePro === 'aucun'
+        ? 'Sans attribution'
+        : (nomParPro.get(filtrePro) ?? 'Agenda')
+
+  const optionsAgenda = useMemo(
+    () => [
+      { id: 'tous', label: 'Tous les agendas' },
+      ...professionnels.map((p) => ({ id: p.id, label: p.nom })),
+      { id: 'aucun', label: 'Sans attribution' },
+    ],
+    [professionnels]
+  )
+
   const rafraichir = () => router.refresh()
 
   return (
     <div>
-      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-4 gap-3">
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-3 gap-3">
         <div className="flex w-full sm:w-auto gap-1 bg-[var(--color-surface)] border border-[var(--color-line)] rounded-xl p-1">
           {OPTIONS_FILTRE.map((o) => (
             <button
@@ -417,22 +446,6 @@ export default function DashboardCalendar({
             </button>
           ))}
         </div>
-        {professionnels.length > 0 && filtre === 'confirme' && (
-          <select
-            value={filtrePro}
-            onChange={(e) => setFiltrePro(e.target.value)}
-            className="ui-input !w-auto !py-2 !px-3 text-sm"
-            aria-label="Agenda de"
-          >
-            <option value="tous">Tous les agendas</option>
-            {professionnels.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.nom}
-              </option>
-            ))}
-            <option value="aucun">Sans attribution</option>
-          </select>
-        )}
         <button
           type="button"
           onClick={() => setAjoutLibreOuvert(true)}
@@ -441,6 +454,36 @@ export default function DashboardCalendar({
           + Ajouter un rendez-vous
         </button>
       </div>
+
+      {professionnels.length > 0 && (
+        <div className="mb-3">
+          <div
+            className="flex w-full flex-wrap gap-1 bg-[var(--color-surface)] border border-[var(--color-line)] rounded-xl p-1"
+            role="tablist"
+            aria-label="Agenda"
+          >
+            {optionsAgenda.map((o) => (
+              <button
+                key={o.id}
+                type="button"
+                onClick={() => setFiltrePro(o.id)}
+                className={`flex-1 sm:flex-none text-sm sm:text-xs px-3 py-2.5 sm:py-2 rounded-lg whitespace-nowrap transition-colors ${
+                  filtrePro === o.id
+                    ? 'bg-[var(--color-primary)] text-white'
+                    : 'text-[var(--color-ink-soft)] hover:text-[var(--color-ink)]'
+                }`}
+              >
+                {o.label}
+              </button>
+            ))}
+          </div>
+          <h2 className="text-lg sm:text-xl font-semibold text-[var(--color-ink)] mt-3">
+            {filtrePro === 'tous' || filtrePro === 'aucun'
+              ? nomAgendaAffiche
+              : `Agenda de ${nomAgendaAffiche}`}
+          </h2>
+        </div>
+      )}
 
       <div className="calendar-shell">
         <div className="min-w-0 h-[min(75dvh,650px)] sm:h-[650px]">

@@ -63,6 +63,7 @@ export default async function DashboardPharmaciePage() {
     { data: reservationsPeriode },
     nbNonLus,
     { data: professionnels },
+    { data: liensEquipeData },
   ] = await Promise.all([
     supabaseAdmin
       .from('creneaux')
@@ -86,7 +87,17 @@ export default async function DashboardPharmaciePage() {
       .select('id, nom, actif')
       .eq('pharmacie_id', role.id)
       .order('created_at', { ascending: true }),
+    supabaseAdmin
+      .from('types_rdv_professionnels')
+      .select('type_rdv_id, professionnel_id, professionnels!inner(pharmacie_id)')
+      .eq('professionnels.pharmacie_id', role.id),
   ])
+
+  const equipeParTypeId: Record<string, string[]> = {}
+  for (const l of liensEquipeData ?? []) {
+    if (!equipeParTypeId[l.type_rdv_id]) equipeParTypeId[l.type_rdv_id] = []
+    equipeParTypeId[l.type_rdv_id].push(l.professionnel_id)
+  }
 
   const creneauxParId = new Map<string, CreneauRow>()
 
@@ -150,6 +161,7 @@ export default async function DashboardPharmaciePage() {
         creneaux={creneaux}
         pharmacieId={role.id}
         professionnels={professionnels ?? []}
+        equipeParTypeId={equipeParTypeId}
       />
     </DashboardNav>
   )
