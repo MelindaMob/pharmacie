@@ -13,6 +13,8 @@ type PharmacieAdmin = {
   telephone: string
   retell_phone_number: string | null
   numero_garde: string | null
+  garde_seule: boolean
+  numero_sms_garde: string | null
   email: string
   groupement_nom: string | null
   horaires_ouverture: Record<
@@ -66,6 +68,10 @@ export default function FichePharmacieAdmin({ pharmacie }: { pharmacie: Pharmaci
     pharmacie.numero_garde ? normaliserNumeroFrancais(pharmacie.numero_garde) : ''
   )
   const [gardeActive, setGardeActive] = useState(!!pharmacie.numero_garde?.trim())
+  const [gardeSeule, setGardeSeule] = useState(!!pharmacie.garde_seule)
+  const [numeroSmsGarde, setNumeroSmsGarde] = useState(
+    pharmacie.numero_sms_garde ? normaliserNumeroFrancais(pharmacie.numero_sms_garde) : ''
+  )
   const [email, setEmail] = useState(pharmacie.email ?? '')
   const [loading, setLoading] = useState(false)
   const [message, setMessage] = useState('')
@@ -80,6 +86,10 @@ export default function FichePharmacieAdmin({ pharmacie }: { pharmacie: Pharmaci
       pharmacie.numero_garde ? normaliserNumeroFrancais(pharmacie.numero_garde) : ''
     )
     setGardeActive(!!pharmacie.numero_garde?.trim())
+    setGardeSeule(!!pharmacie.garde_seule)
+    setNumeroSmsGarde(
+      pharmacie.numero_sms_garde ? normaliserNumeroFrancais(pharmacie.numero_sms_garde) : ''
+    )
     setEmail(pharmacie.email ?? '')
     setCoords(null)
   }, [pharmacie])
@@ -104,6 +114,8 @@ export default function FichePharmacieAdmin({ pharmacie }: { pharmacie: Pharmaci
         telephone,
         retellPhoneNumber,
         numeroGarde: gardeActive ? normaliserNumeroFrancais(numeroGarde) : '',
+        gardeSeule: gardeActive && gardeSeule,
+        numeroSmsGarde: gardeActive && numeroSmsGarde.trim() ? normaliserNumeroFrancais(numeroSmsGarde) : '',
         email,
         ...(coords ? { lat: coords.lat, lng: coords.lng } : {}),
       }),
@@ -202,7 +214,11 @@ export default function FichePharmacieAdmin({ pharmacie }: { pharmacie: Pharmaci
             checked={gardeActive}
             onChange={(e) => {
               setGardeActive(e.target.checked)
-              if (!e.target.checked) setNumeroGarde('')
+              if (!e.target.checked) {
+                setNumeroGarde('')
+                setNumeroSmsGarde('')
+                setGardeSeule(false)
+              }
             }}
             className="rounded border-[var(--color-line)]"
           />
@@ -220,6 +236,30 @@ export default function FichePharmacieAdmin({ pharmacie }: { pharmacie: Pharmaci
               inputMode="tel"
             />
           </div>
+        )}
+        {gardeActive && (
+          <div>
+            <label className="ui-label">Mobile du pharmacien pour les alertes SMS (optionnel)</label>
+            <input
+              type="tel"
+              value={numeroSmsGarde}
+              onChange={(e) => setNumeroSmsGarde(normaliserNumeroFrancais(e.target.value))}
+              className="ui-input"
+              placeholder="Ex : +33612345678"
+              inputMode="tel"
+            />
+          </div>
+        )}
+        {gardeActive && (
+          <label className="flex items-center gap-2 text-sm text-[var(--color-ink)] cursor-pointer select-none">
+            <input
+              type="checkbox"
+              checked={gardeSeule}
+              onChange={(e) => setGardeSeule(e.target.checked)}
+              className="rounded border-[var(--color-line)]"
+            />
+            Garde seule (le numéro reste toujours en mode garde, sans prise de RDV)
+          </label>
         )}
 
         {erreur && <p className="text-red-600 text-sm">{erreur}</p>}

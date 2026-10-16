@@ -27,7 +27,7 @@ export default async function AdminPharmaciePage({
     supabaseAdmin
       .from('pharmacies')
       .select(
-        'id, nom, adresse, telephone, retell_phone_number, numero_garde, auth_user_id, horaires_ouverture, groupement_id, groupements(nom)'
+        'id, nom, adresse, telephone, retell_phone_number, numero_garde, garde_seule, numero_sms_garde, auth_user_id, horaires_ouverture, groupement_id, groupements(nom)'
       )
       .eq('id', id)
       .single(),
@@ -66,6 +66,8 @@ export default async function AdminPharmaciePage({
           telephone: pharmacie.telephone ?? '',
           retell_phone_number: pharmacie.retell_phone_number ?? null,
           numero_garde: pharmacie.numero_garde ?? null,
+          garde_seule: pharmacie.garde_seule ?? false,
+          numero_sms_garde: pharmacie.numero_sms_garde ?? null,
           email,
           groupement_nom: groupementNom,
           horaires_ouverture: pharmacie.horaires_ouverture ?? null,

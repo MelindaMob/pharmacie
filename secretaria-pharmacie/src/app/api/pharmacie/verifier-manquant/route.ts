@@ -13,7 +13,13 @@ type ManquantAvecMedicament = {
   id: string
   patient_nom: string
   disponible: boolean
+  produit_libre: string | null
   medicaments: { denomination: string } | { denomination: string }[] | null
+}
+
+/** Nom du produit : médicament de la liste, sinon produit saisi librement. */
+function nomProduit(r: ManquantAvecMedicament): string | null {
+  return unwrapEmbed<{ denomination: string }>(r.medicaments)?.denomination ?? r.produit_libre ?? null
 }
 
 /**
@@ -40,7 +46,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'pharmacieId manquant' }, { status: 400 })
   }
 
-  const selection = 'id, patient_nom, disponible, medicaments (denomination)'
+  const selection = 'id, patient_nom, disponible, produit_libre, medicaments (denomination)'
 
   let resultats: ManquantAvecMedicament[] = []
 
@@ -78,8 +84,8 @@ export async function POST(request: NextRequest) {
   if (resultats.length > 1 && produit) {
     const produitNormalise = normaliserTexte(produit)
     resultats = resultats.filter((r) => {
-      const medicament = unwrapEmbed<{ denomination: string }>(r.medicaments)
-      return medicament && normaliserTexte(medicament.denomination).includes(produitNormalise)
+      const nom = nomProduit(r)
+      return !!nom && normaliserTexte(nom).includes(produitNormalise)
     })
   }
 
@@ -87,19 +93,16 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       statut: 'besoin_precision',
       besoin: 'produit',
-      produits: resultats.map(
-        (r) => unwrapEmbed<{ denomination: string }>(r.medicaments)?.denomination ?? null
-      ),
+      produits: resultats.map((r) => nomProduit(r)),
     })
   }
 
   const trouve = resultats[0]
-  const medicament = unwrapEmbed<{ denomination: string }>(trouve.medicaments)
 
   return NextResponse.json({
     statut: 'trouve',
     patientNom: trouve.patient_nom,
-    medicament: medicament?.denomination ?? null,
+    medicament: nomProduit(trouve),
     disponible: trouve.disponible,
   })
 }

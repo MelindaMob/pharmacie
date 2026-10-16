@@ -29,7 +29,7 @@ export default async function ParametresPharmaciePage() {
 
   const { data: pharmacie } = await supabase
     .from('pharmacies')
-    .select('horaires_ouverture, adresse, delai_annulation_heures, numero_garde')
+    .select('horaires_ouverture, adresse, delai_annulation_heures, numero_garde, garde_seule')
     .eq('id', role.id)
     .single()
 
@@ -132,7 +132,8 @@ export default async function ParametresPharmaciePage() {
 
   const nbNonLus = await compterNonLusPharmacie(role.id)
 
-  const bloque = !auMoinsUnJourOuvert(pharmacie?.horaires_ouverture)
+  const gardeSeule = !!pharmacie?.garde_seule
+  const bloque = !gardeSeule && !auMoinsUnJourOuvert(pharmacie?.horaires_ouverture)
 
   return (
     <DashboardNav actif="parametres" nbNonLus={nbNonLus} bloque={bloque}>
@@ -148,16 +149,22 @@ export default async function ParametresPharmaciePage() {
           Adresse : {pharmacie?.adresse || 'Non renseignée par Secretar.IA pour le moment'}
         </p>
 
-        <HorairesForm
-          pharmacieId={role.id}
-          horairesInitiaux={pharmacie?.horaires_ouverture ?? {}}
-        />
-        <HorairesExceptionnelsForm pharmacieId={role.id} exceptions={exceptions ?? []} />
+        {!gardeSeule && (
+          <>
+            <HorairesForm
+              pharmacieId={role.id}
+              horairesInitiaux={pharmacie?.horaires_ouverture ?? {}}
+            />
+            <HorairesExceptionnelsForm pharmacieId={role.id} exceptions={exceptions ?? []} />
+          </>
+        )}
         <GardeForm
           pharmacieId={role.id}
           numeroGarde={pharmacie?.numero_garde ?? null}
           periodes={gardesData ?? []}
         />
+        {!gardeSeule && (
+          <>
         <EquipeForm
           pharmacieId={role.id}
           professionnels={professionnelsData ?? []}
@@ -182,6 +189,8 @@ export default async function ParametresPharmaciePage() {
           pharmacieId={role.id}
           delaiInitial={pharmacie?.delai_annulation_heures ?? 2}
         />
+          </>
+        )}
       </div>
     </DashboardNav>
   )

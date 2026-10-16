@@ -44,7 +44,7 @@ export default async function ManquantsPage() {
     .from('manquants')
     .select(
       `
-      id, patient_nom, patient_telephone, disponible, delivre, delivre_le, created_at,
+      id, patient_nom, patient_telephone, disponible, delivre, delivre_le, created_at, produit_libre,
       medicaments (id, denomination, forme_pharmaceutique)
     `
     )
@@ -58,6 +58,7 @@ export default async function ManquantsPage() {
     disponible: m.disponible as boolean,
     delivre: m.delivre as boolean,
     medicament: unwrapEmbed<MedicamentEmbed>(m.medicaments),
+    produit_libre: (m.produit_libre as string | null) ?? null,
   }))
 
   return (

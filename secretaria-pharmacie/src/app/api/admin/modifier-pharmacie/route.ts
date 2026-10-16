@@ -24,6 +24,8 @@ export async function PATCH(request: NextRequest) {
     telephone,
     retellPhoneNumber,
     numeroGarde,
+    gardeSeule,
+    numeroSmsGarde,
     email,
   } = body as {
     pharmacieId?: string
@@ -34,6 +36,8 @@ export async function PATCH(request: NextRequest) {
     telephone?: string
     retellPhoneNumber?: string
     numeroGarde?: string
+    gardeSeule?: boolean
+    numeroSmsGarde?: string
     email?: string
   }
 
@@ -65,6 +69,14 @@ export async function PATCH(request: NextRequest) {
     const garde =
       typeof numeroGarde === 'string' ? normaliserNumeroFrancais(numeroGarde) : ''
     updates.numero_garde = garde || null
+  }
+  if (numeroSmsGarde !== undefined) {
+    const sms =
+      typeof numeroSmsGarde === 'string' ? normaliserNumeroFrancais(numeroSmsGarde) : ''
+    updates.numero_sms_garde = sms || null
+  }
+  if (typeof gardeSeule === 'boolean') {
+    updates.garde_seule = gardeSeule
   }
 
   if (Object.keys(updates).length > 0) {

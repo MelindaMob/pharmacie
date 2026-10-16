@@ -16,6 +16,8 @@ export default function CreerPharmacieForm({ groupements }: { groupements: Group
   const [retellPhoneNumber, setRetellPhoneNumber] = useState('')
   const [gardeActive, setGardeActive] = useState(false)
   const [numeroGarde, setNumeroGarde] = useState('')
+  const [numeroSmsGarde, setNumeroSmsGarde] = useState('')
+  const [gardeSeule, setGardeSeule] = useState(false)
   const [groupementId, setGroupementId] = useState('')
   const [loading, setLoading] = useState(false)
   const [message, setMessage] = useState('')
@@ -46,6 +48,8 @@ export default function CreerPharmacieForm({ groupements }: { groupements: Group
         groupementId,
         retellPhoneNumber,
         numeroGarde: gardeActive ? normaliserNumeroFrancais(numeroGarde) : '',
+        numeroSmsGarde: gardeActive && numeroSmsGarde.trim() ? normaliserNumeroFrancais(numeroSmsGarde) : '',
+        gardeSeule: gardeActive && gardeSeule,
       }),
     })
     const data = await res.json()
@@ -104,7 +108,11 @@ export default function CreerPharmacieForm({ groupements }: { groupements: Group
             checked={gardeActive}
             onChange={(e) => {
               setGardeActive(e.target.checked)
-              if (!e.target.checked) setNumeroGarde('')
+              if (!e.target.checked) {
+                setNumeroGarde('')
+                setNumeroSmsGarde('')
+                setGardeSeule(false)
+              }
             }}
             className="rounded border-[var(--color-line)]"
           />
@@ -119,6 +127,27 @@ export default function CreerPharmacieForm({ groupements }: { groupements: Group
             className={`${inputClass} col-span-2`}
             inputMode="tel"
           />
+        )}
+        {gardeActive && (
+          <input
+            type="tel"
+            placeholder="Mobile du pharmacien pour les alertes SMS (optionnel) — ex. 0612345678"
+            value={numeroSmsGarde}
+            onChange={(e) => setNumeroSmsGarde(normaliserNumeroFrancais(e.target.value))}
+            className={`${inputClass} col-span-2`}
+            inputMode="tel"
+          />
+        )}
+        {gardeActive && (
+          <label className="col-span-2 flex items-center gap-2 text-sm text-[var(--color-ink)] cursor-pointer select-none">
+            <input
+              type="checkbox"
+              checked={gardeSeule}
+              onChange={(e) => setGardeSeule(e.target.checked)}
+              className="rounded border-[var(--color-line)]"
+            />
+            Garde seule (le numéro reste toujours en mode garde, sans prise de RDV)
+          </label>
         )}
         <input
           type="email"

@@ -24,11 +24,13 @@ export async function POST(request: NextRequest) {
   const body = await request.json()
   const pharmacieId = typeof body.pharmacieId === 'string' ? body.pharmacieId : ''
   const medicamentId = typeof body.medicamentId === 'string' ? body.medicamentId : ''
+  const produitLibre = typeof body.produitLibre === 'string' ? body.produitLibre.trim().slice(0, 120) : ''
   const patientNom = typeof body.patientNom === 'string' ? body.patientNom.trim() : ''
   const patientTelephone =
     typeof body.patientTelephone === 'string' ? body.patientTelephone.trim() : ''
 
-  if (!pharmacieId || !medicamentId || !patientNom || !patientTelephone) {
+  // Un produit de la liste OU un nom de produit saisi librement
+  if (!pharmacieId || (!medicamentId && produitLibre.length < 2) || !patientNom || !patientTelephone) {
     return NextResponse.json({ error: 'Champs manquants' }, { status: 400 })
   }
 
@@ -40,7 +42,8 @@ export async function POST(request: NextRequest) {
     .from('manquants')
     .insert({
       pharmacie_id: pharmacieId,
-      medicament_id: medicamentId,
+      medicament_id: medicamentId || null,
+      produit_libre: medicamentId ? null : produitLibre,
       patient_nom: patientNom,
       patient_telephone: normaliserNumeroFrancais(patientTelephone),
     })
@@ -112,7 +115,7 @@ export async function PATCH(request: NextRequest) {
     .eq('pharmacie_id', pharmacieId)
     .select(
       `
-      id, patient_telephone, sms_envoye,
+      id, patient_telephone, sms_envoye, produit_libre,
       medicaments (denomination),
       pharmacies (nom)
     `
@@ -132,7 +135,7 @@ export async function PATCH(request: NextRequest) {
 
     const resultat = await envoyerSms(
       telephone,
-      `Bonjour, votre produit ${medicament?.denomination ?? ''} est disponible à la pharmacie ${
+      `Bonjour, votre produit ${medicament?.denomination ?? (data.produit_libre as string | null) ?? ''} est disponible à la pharmacie ${
         pharmacie?.nom ?? ''
       }.`
     )

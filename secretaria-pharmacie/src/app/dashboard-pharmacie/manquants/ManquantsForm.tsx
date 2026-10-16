@@ -13,6 +13,7 @@ type Manquant = {
   disponible: boolean
   delivre: boolean
   medicament: Medicament | null
+  produit_libre: string | null
 }
 
 function statutDe(m: Manquant): Statut {
@@ -37,6 +38,8 @@ export default function ManquantsForm({
   const [patientNom, setPatientNom] = useState('')
   const [patientTelephone, setPatientTelephone] = useState('')
   const [medicament, setMedicament] = useState<Medicament | null>(null)
+  // Texte tapé dans le champ produit : sert tel quel si rien n'est choisi dans la liste.
+  const [produitLibre, setProduitLibre] = useState('')
   const [autocompleteKey, setAutocompleteKey] = useState(0)
   const [loading, setLoading] = useState(false)
   const [erreur, setErreur] = useState('')
@@ -45,7 +48,8 @@ export default function ManquantsForm({
   const router = useRouter()
 
   const ajouter = async () => {
-    if (!patientNom.trim() || !patientTelephone.trim() || !medicament) {
+    const produitSaisi = produitLibre.trim()
+    if (!patientNom.trim() || !patientTelephone.trim() || (!medicament && produitSaisi.length < 2)) {
       setErreur('Renseignez le nom, le téléphone du patient et le produit')
       return
     }
@@ -61,7 +65,7 @@ export default function ManquantsForm({
         pharmacieId,
         patientNom: patientNom.trim(),
         patientTelephone: patientTelephone.trim(),
-        medicamentId: medicament.id,
+        ...(medicament ? { medicamentId: medicament.id } : { produitLibre: produitSaisi }),
       }),
     })
     const data = await res.json()
@@ -76,6 +80,7 @@ export default function ManquantsForm({
     setPatientNom('')
     setPatientTelephone('')
     setMedicament(null)
+    setProduitLibre('')
     setAutocompleteKey((k) => k + 1)
     router.refresh()
   }
@@ -137,13 +142,23 @@ export default function ManquantsForm({
 
         <div className="w-full sm:w-64">
           <label className="ui-label">Produit concerné</label>
-          <MedicamentAutocomplete key={autocompleteKey} onSelect={setMedicament} />
+          <MedicamentAutocomplete
+            key={autocompleteKey}
+            onSelect={setMedicament}
+            onChangeTexte={(texte) => {
+              setProduitLibre(texte)
+              setMedicament(null)
+            }}
+          />
+          <p className="text-[11px] text-[var(--color-ink-soft)] mt-1">
+            Pas dans la liste ? Tapez le nom du produit, il sera enregistré tel quel.
+          </p>
         </div>
 
         <button
           type="button"
           onClick={ajouter}
-          disabled={loading || !medicament}
+          disabled={loading || (!medicament && produitLibre.trim().length < 2)}
           className="ui-btn-primary w-full sm:w-auto"
         >
           {loading ? 'Ajout…' : 'Ajouter'}
@@ -167,7 +182,7 @@ export default function ManquantsForm({
               <div className="text-sm text-[var(--color-ink)] min-w-0">
                 <span className="font-medium">{m.patient_nom}</span>
                 <span className="text-[var(--color-ink-soft)]"> · {m.patient_telephone} · </span>
-                <span>{m.medicament?.denomination ?? 'Médicament supprimé du catalogue'}</span>
+                <span>{m.medicament?.denomination ?? m.produit_libre ?? 'Produit non précisé'}</span>
               </div>
 
               <div className="flex items-center gap-1 shrink-0 w-full sm:w-auto">

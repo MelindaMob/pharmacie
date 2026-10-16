@@ -49,6 +49,14 @@ export default async function DashboardPharmaciePage() {
   const role = await getUserRole()
   if (!role || role.role !== 'pharmacie') redirect('/connexion')
 
+  // Pharmacie « garde seule » : pas de calendrier, on l'envoie sur ses appels de garde.
+  const { data: pharmacieGarde } = await supabaseAdmin
+    .from('pharmacies')
+    .select('garde_seule')
+    .eq('id', role.id)
+    .maybeSingle()
+  if (pharmacieGarde?.garde_seule) redirect('/dashboard-pharmacie/garde-messages')
+
   if (!(await horairesSontConfigures(role.id))) {
     redirect('/dashboard-pharmacie/parametres')
   }

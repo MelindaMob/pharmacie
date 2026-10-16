@@ -10,8 +10,11 @@ export type Medicament = {
 
 export default function MedicamentAutocomplete({
   onSelect,
+  onChangeTexte,
 }: {
   onSelect: (medicament: Medicament) => void
+  /** Appelé à chaque frappe : permet de garder le texte tapé comme produit libre (hors liste). */
+  onChangeTexte?: (texte: string) => void
 }) {
   const [query, setQuery] = useState('')
   const [suggestions, setSuggestions] = useState<Medicament[]>([])
@@ -20,6 +23,7 @@ export default function MedicamentAutocomplete({
 
   const chercher = (valeur: string) => {
     setQuery(valeur)
+    onChangeTexte?.(valeur)
 
     if (debounceRef.current) clearTimeout(debounceRef.current)
 
@@ -58,7 +62,7 @@ export default function MedicamentAutocomplete({
         onChange={(e) => chercher(e.target.value)}
         onFocus={() => suggestions.length > 0 && setOuvert(true)}
         onBlur={() => setTimeout(() => setOuvert(false), 150)}
-        placeholder="Rechercher un médicament…"
+        placeholder="Rechercher ou saisir un produit…"
         className="ui-input"
         autoComplete="off"
       />

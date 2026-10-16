@@ -129,7 +129,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Non autorisé' }, { status: 403 })
   }
 
-  const { nom, email, telephone, groupementId, retellPhoneNumber, numeroGarde } =
+  const { nom, email, telephone, groupementId, retellPhoneNumber, numeroGarde, numeroSmsGarde, gardeSeule } =
     await request.json()
 
   if (!nom || !email || !telephone) {
@@ -197,6 +197,10 @@ export async function POST(request: NextRequest) {
     typeof numeroGarde === 'string' ? normaliserNumeroFrancais(numeroGarde) : ''
   if (garde) {
     payload.numero_garde = garde
+    // Options du mode garde : seulement si un numéro de garde est renseigné
+    const sms = typeof numeroSmsGarde === 'string' ? normaliserNumeroFrancais(numeroSmsGarde) : ''
+    if (sms) payload.numero_sms_garde = sms
+    if (gardeSeule === true) payload.garde_seule = true
   }
 
   let { data: pharmacie, error: pharmacieError } = await supabase
