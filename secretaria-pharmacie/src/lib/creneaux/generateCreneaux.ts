@@ -294,7 +294,7 @@ export async function generateCreneauxPourPharmacie(
 
   const { data: anciensLibres, error: selectError } = await supabase
     .from('creneaux')
-    .select('id')
+    .select('id, type_rdv_id, debut, fin')
     .eq('pharmacie_id', pharmacieId)
     .gte('debut', debutPeriodeUtc.toISOString())
     .lt('debut', finPeriodeUtc.toISOString())
@@ -304,9 +304,18 @@ export async function generateCreneauxPourPharmacie(
     return { success: false, count: 0, error: messageErreur(selectError) }
   }
 
+  // Un créneau libre qui existe déjà à l'identique (même type, même début, même fin)
+  // est conservé : son ID reste stable pour les appels / réservations en cours.
+  const cle = (typeId: string, debut: string, fin: string) =>
+    `${typeId}|${new Date(debut).getTime()}|${new Date(fin).getTime()}`
+  const clesNouvelles = new Set(
+    nouveauxCreneaux.map((c) => cle(c.type_rdv_id, c.debut, c.fin))
+  )
+
   const idsASupprimer = (anciensLibres ?? [])
+    .filter((c) => !idsProteges.has(c.id))
+    .filter((c) => !clesNouvelles.has(cle(c.type_rdv_id, c.debut, c.fin)))
     .map((c) => c.id)
-    .filter((id) => !idsProteges.has(id))
 
   if (idsASupprimer.length > 0) {
     // Supabase limite parfois les .in() très longs → paquets
