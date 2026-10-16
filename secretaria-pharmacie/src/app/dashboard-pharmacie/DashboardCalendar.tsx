@@ -251,8 +251,8 @@ export default function DashboardCalendar({
 }) {
   const router = useRouter()
   const [filtre, setFiltre] = useState<FiltreStatut>('confirme')
-  // 'tous' | id d'un professionnel | 'aucun' (RDV sans professionnel attribué)
-  const [filtrePro, setFiltrePro] = useState<string>('tous')
+  // 'tous' = tous les agendas. Sinon liste d'ids (professionnel ou 'aucun') cochés.
+  const [filtrePros, setFiltrePros] = useState<string[]>(['tous'])
   const [view, setView] = useState<View>('week')
   const [date, setDate] = useState(() => new Date())
   const [reservationOuverte, setReservationOuverte] = useState<{
@@ -314,22 +314,34 @@ export default function DashboardCalendar({
 
   const correspondAuPro = useCallback(
     (r: ReservationInfo) => {
-      if (filtrePro === 'tous') return true
-      if (filtrePro === 'aucun') return !r.professionnel_id
-      return r.professionnel_id === filtrePro
+      if (filtrePros.includes('tous')) return true
+      if (filtrePros.includes('aucun') && !r.professionnel_id) return true
+      return !!r.professionnel_id && filtrePros.includes(r.professionnel_id)
     },
-    [filtrePro]
+    [filtrePros]
   )
 
   const creneauCorrespondAuPro = useCallback(
     (typeRdvId: string) => {
-      if (filtrePro === 'tous') return true
+      if (filtrePros.includes('tous')) return true
       const assigns = equipeParTypeId[typeRdvId] ?? []
-      if (filtrePro === 'aucun') return assigns.length === 0
-      return assigns.includes(filtrePro)
+      if (filtrePros.includes('aucun') && assigns.length === 0) return true
+      return assigns.some((id) => filtrePros.includes(id))
     },
-    [filtrePro, equipeParTypeId]
+    [filtrePros, equipeParTypeId]
   )
+
+  const toggleAgenda = (id: string) => {
+    if (id === 'tous') {
+      setFiltrePros(['tous'])
+      return
+    }
+    setFiltrePros((prev) => {
+      const actif = prev.filter((x) => x !== 'tous')
+      const next = actif.includes(id) ? actif.filter((x) => x !== id) : [...actif, id]
+      return next.length === 0 ? ['tous'] : next
+    })
+  }
 
   const creneauxFiltres = useMemo(() => {
     if (filtre === 'disponible') {
@@ -397,7 +409,7 @@ export default function DashboardCalendar({
         },
       }))
     })
-  }, [creneauxFiltres, filtre, correspondAuPro, nomParPro, filtrePro])
+  }, [creneauxFiltres, filtre, correspondAuPro, nomParPro])
 
   const calendarComponents = useMemo(
     () => ({
@@ -409,12 +421,14 @@ export default function DashboardCalendar({
     [filtre, couleurParType]
   )
 
-  const nomAgendaAffiche =
-    filtrePro === 'tous'
-      ? 'Tous les agendas'
-      : filtrePro === 'aucun'
-        ? 'Sans attribution'
-        : (nomParPro.get(filtrePro) ?? 'Agenda')
+  const nomAgendaAffiche = useMemo(() => {
+    if (filtrePros.includes('tous')) return 'Tous les agendas'
+    const noms = filtrePros.map((id) =>
+      id === 'aucun' ? 'Sans attribution' : nomParPro.get(id)
+    ).filter((n): n is string => !!n)
+    if (noms.length === 1 && filtrePros[0] !== 'aucun') return `Agenda de ${noms[0]}`
+    return noms.join(', ')
+  }, [filtrePros, nomParPro])
 
   const optionsAgenda = useMemo(
     () => [
@@ -466,9 +480,10 @@ export default function DashboardCalendar({
               <button
                 key={o.id}
                 type="button"
-                onClick={() => setFiltrePro(o.id)}
+                onClick={() => toggleAgenda(o.id)}
+                aria-pressed={filtrePros.includes(o.id)}
                 className={`flex-1 sm:flex-none text-sm sm:text-xs px-3 py-2.5 sm:py-2 rounded-lg whitespace-nowrap transition-colors ${
-                  filtrePro === o.id
+                  filtrePros.includes(o.id)
                     ? 'bg-[var(--color-primary)] text-white'
                     : 'text-[var(--color-ink-soft)] hover:text-[var(--color-ink)]'
                 }`}
@@ -478,9 +493,7 @@ export default function DashboardCalendar({
             ))}
           </div>
           <h2 className="text-lg sm:text-xl font-semibold text-[var(--color-ink)] mt-3">
-            {filtrePro === 'tous' || filtrePro === 'aucun'
-              ? nomAgendaAffiche
-              : `Agenda de ${nomAgendaAffiche}`}
+            {nomAgendaAffiche}
           </h2>
         </div>
       )}

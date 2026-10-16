@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 
 export type Professionnel = { id: string; nom: string; actif: boolean }
@@ -18,32 +18,48 @@ export default function TypeRdvEquipe({
   selection: string[]
   onChange: (ids: string[]) => void
 }) {
-  const [loading, setLoading] = useState(false)
   const [erreur, setErreur] = useState('')
+  const [enregistrement, setEnregistrement] = useState(false)
   const router = useRouter()
+  const aEnvoyer = useRef<string[] | null>(null)
+  const enVol = useRef(false)
 
-  const basculer = async (proId: string) => {
-    if (loading) return
+  const enregistrer = async (ids: string[]) => {
+    aEnvoyer.current = ids
+    if (enVol.current) return
+    enVol.current = true
+    setEnregistrement(true)
+    setErreur('')
+
+    while (aEnvoyer.current) {
+      const payload = aEnvoyer.current
+      aEnvoyer.current = null
+      const res = await fetch('/api/pharmacie/types-rdv-professionnels', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ pharmacieId, typeRdvId, professionnelIds: payload }),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) {
+        setErreur(typeof data.error === 'string' ? data.error : "Erreur lors de l'enregistrement")
+        enVol.current = false
+        setEnregistrement(false)
+        router.refresh()
+        return
+      }
+    }
+
+    enVol.current = false
+    setEnregistrement(false)
+    router.refresh()
+  }
+
+  const basculer = (proId: string) => {
     const prochaine = selection.includes(proId)
       ? selection.filter((x) => x !== proId)
       : [...selection, proId]
-
-    setLoading(true)
-    setErreur('')
-    const res = await fetch('/api/pharmacie/types-rdv-professionnels', {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ pharmacieId, typeRdvId, professionnelIds: prochaine }),
-    })
-    const data = await res.json().catch(() => ({}))
-    setLoading(false)
-
-    if (!res.ok) {
-      setErreur(typeof data.error === 'string' ? data.error : "Erreur lors de l'enregistrement")
-      return
-    }
     onChange(prochaine)
-    router.refresh()
+    void enregistrer(prochaine)
   }
 
   return (
@@ -56,8 +72,7 @@ export default function TypeRdvEquipe({
             <button
               key={p.id}
               type="button"
-              disabled={loading}
-              onClick={() => void basculer(p.id)}
+              onClick={() => basculer(p.id)}
               className={`text-xs rounded-full border px-2.5 py-1 ${
                 choisi ? 'bg-gray-900 text-white border-gray-900' : 'bg-white text-gray-700'
               } ${p.actif ? '' : 'opacity-50'}`}
@@ -66,6 +81,9 @@ export default function TypeRdvEquipe({
             </button>
           )
         })}
+        {enregistrement && (
+          <span className="text-[11px] text-gray-400">Enregistrement…</span>
+        )}
       </div>
       {selection.length === 0 && (
         <p className="text-xs text-gray-500 mt-1">
