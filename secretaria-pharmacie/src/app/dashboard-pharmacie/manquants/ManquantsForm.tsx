@@ -149,9 +149,13 @@ export default function ManquantsForm({
               setProduitLibre(texte)
               setMedicament(null)
             }}
+            onSelectLibre={(texte) => {
+              setProduitLibre(texte)
+              setMedicament(null)
+            }}
           />
           <p className="text-[11px] text-[var(--color-ink-soft)] mt-1">
-            Pas dans la liste ? Tapez le nom du produit, il sera enregistré tel quel.
+            Pas dans la liste ? Choisissez « Autre » en bas du menu.
           </p>
         </div>
 
