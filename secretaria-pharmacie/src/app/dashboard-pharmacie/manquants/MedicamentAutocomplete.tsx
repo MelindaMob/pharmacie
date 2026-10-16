@@ -83,38 +83,40 @@ export default function MedicamentAutocomplete({
         autoComplete="off"
       />
       {montrerListe && (
-        <ul className="absolute z-10 mt-1 w-full max-h-56 overflow-y-auto rounded border border-[var(--color-line)] bg-[var(--color-surface)] shadow-sm">
-          {suggestions.map((m) => (
-            <li key={m.id}>
-              <button
-                type="button"
-                className="w-full px-3 py-2 text-left text-sm hover:bg-[var(--color-accent-soft)]"
-                onMouseDown={(e) => e.preventDefault()}
-                onClick={() => selectionner(m)}
-              >
-                {m.denomination}
-                {m.forme_pharmaceutique && (
-                  <span className="ml-1 text-xs text-[var(--color-ink-soft)]">
-                    — {m.forme_pharmaceutique}
-                  </span>
-                )}
-              </button>
-            </li>
-          ))}
-          <li className={suggestions.length > 0 ? 'border-t border-[var(--color-line)]' : ''}>
-            <button
-              type="button"
-              className="w-full px-3 py-2 text-left text-sm hover:bg-[var(--color-accent-soft)]"
-              onMouseDown={(e) => e.preventDefault()}
-              onClick={choisirAutre}
-            >
-              <span className="font-medium">Autre</span>
-              <span className="ml-1 text-xs text-[var(--color-ink-soft)]">
-                — enregistrer « {saisie} » tel quel
-              </span>
-            </button>
-          </li>
-        </ul>
+        <div className="absolute z-20 mt-1 w-full rounded border border-[var(--color-line)] bg-[var(--color-surface)] shadow-sm overflow-hidden">
+          {suggestions.length > 0 && (
+            <ul className="max-h-44 overflow-y-auto">
+              {suggestions.map((m) => (
+                <li key={m.id}>
+                  <button
+                    type="button"
+                    className="w-full px-3 py-2 text-left text-sm hover:bg-[var(--color-accent-soft)]"
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={() => selectionner(m)}
+                  >
+                    {m.denomination}
+                    {m.forme_pharmaceutique && (
+                      <span className="ml-1 text-xs text-[var(--color-ink-soft)]">
+                        — {m.forme_pharmaceutique}
+                      </span>
+                    )}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+          <button
+            type="button"
+            className="w-full px-3 py-2 text-left text-sm border-t border-[var(--color-line)] bg-[var(--color-surface)] hover:bg-[var(--color-accent-soft)]"
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={choisirAutre}
+          >
+            <span className="font-medium">Autre</span>
+            <span className="ml-1 text-xs text-[var(--color-ink-soft)]">
+              — enregistrer « {saisie} » tel quel
+            </span>
+          </button>
+        </div>
       )}
     </div>
   )
