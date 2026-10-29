@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js'
 import { NextRequest, NextResponse } from 'next/server'
-import { envoyerSms, normaliserNumeroFrancais } from '@/lib/sms/envoyerSms'
+import { envoyerMessage } from '@/lib/messaging/envoyerMessage'
+import { formaterDateHeureParis, smsConfirmation } from '@/lib/messaging/contenus'
 import { unwrapEmbed } from '@/lib/supabase/unwrap'
 import { creneauADeLaPlace, recalculerStatutCreneau } from '@/lib/creneaux/recalculerStatutCreneau'
 
@@ -112,12 +113,18 @@ export async function POST(request: NextRequest) {
     timeZone: 'Europe/Paris',
   }).format(new Date(nouveauCreneau.debut))
 
-  const lienGestion = `${process.env.NEXT_PUBLIC_SITE_URL}/rdv/gestion/${token}`
-
-  await envoyerSms(
-    normaliserNumeroFrancais(reservation.client_telephone),
-    `RDV déplacé chez ${pharmacie?.nom} : ${dateFormatee}. Gérer/annuler : ${lienGestion}`
-  )
+  const { date, heure } = formaterDateHeureParis(nouveauCreneau.debut)
+  await envoyerMessage({
+    type: 'confirmation',
+    telephone: reservation.client_telephone,
+    reservationId: reservation.id,
+    contenuSms: smsConfirmation({
+      pharmacie: pharmacie?.nom ?? '',
+      date,
+      heure,
+      telephonePharmacie: pharmacie?.telephone ?? '',
+    }),
+  })
 
   return NextResponse.json({
     success: true,

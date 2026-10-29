@@ -1,6 +1,6 @@
 import { createClient } from '@supabase/supabase-js'
 import { NextRequest, NextResponse } from 'next/server'
-import { envoyerSms, normaliserNumeroFrancais } from '@/lib/sms/envoyerSms'
+import { envoyerMessage } from '@/lib/messaging/envoyerMessage'
 import { unwrapEmbed } from '@/lib/supabase/unwrap'
 import { recalculerStatutCreneau } from '@/lib/creneaux/recalculerStatutCreneau'
 
@@ -65,10 +65,12 @@ export async function POST(request: NextRequest) {
 
   await recalculerStatutCreneau(reservation.creneau_id)
 
-  await envoyerSms(
-    normaliserNumeroFrancais(reservation.client_telephone),
-    `Votre rendez-vous chez ${pharmacie?.nom} a bien été annulé.`
-  )
+  await envoyerMessage({
+    type: 'autre',
+    telephone: reservation.client_telephone,
+    reservationId: reservation.id,
+    contenuSms: `Votre rendez-vous chez ${pharmacie?.nom} a bien été annulé.`,
+  })
 
   return NextResponse.json({ success: true })
 }

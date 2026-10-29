@@ -1,7 +1,9 @@
 import { createClient } from '@supabase/supabase-js'
 import { NextRequest, NextResponse } from 'next/server'
 import { getUserRole } from '@/lib/auth/getRole'
-import { envoyerSms, normaliserNumeroFrancais } from '@/lib/sms/envoyerSms'
+import { envoyerMessage } from '@/lib/messaging/envoyerMessage'
+import { formaterDateHeureParis, smsConfirmation } from '@/lib/messaging/contenus'
+import { normaliserNumeroFrancais } from '@/lib/sms/envoyerSms'
 import { unwrapEmbed } from '@/lib/supabase/unwrap'
 import { creneauADeLaPlace, recalculerStatutCreneau } from '@/lib/creneaux/recalculerStatutCreneau'
 
@@ -44,7 +46,7 @@ export async function POST(request: NextRequest) {
 
   const { data: creneau } = await supabaseAdmin
     .from('creneaux')
-    .select('id, debut, type_rdv_id, pharmacie_id, pharmacies(nom)')
+    .select('id, debut, type_rdv_id, pharmacie_id, pharmacies(nom, telephone)')
     .eq('id', creneauId)
     .single()
 
@@ -101,21 +103,20 @@ export async function POST(request: NextRequest) {
 
   await recalculerStatutCreneau(creneauId)
 
-  const pharmacie = unwrapEmbed<{ nom: string }>(creneau.pharmacies)
-  const dateFormatee = new Intl.DateTimeFormat('fr-FR', {
-    weekday: 'long',
-    day: 'numeric',
-    month: 'long',
-    hour: '2-digit',
-    minute: '2-digit',
-    timeZone: 'Europe/Paris',
-  }).format(new Date(creneau.debut))
-  const lienGestion = `${process.env.NEXT_PUBLIC_SITE_URL}/rdv/gestion/${reservation.token_gestion}`
+  const pharmacie = unwrapEmbed<{ nom: string; telephone: string }>(creneau.pharmacies)
+  const { date, heure } = formaterDateHeureParis(creneau.debut)
 
-  await envoyerSms(
-    telephoneNormalise,
-    `RDV confirmé chez ${pharmacie?.nom} le ${dateFormatee}. Gérer/annuler : ${lienGestion}`
-  )
+  await envoyerMessage({
+    type: 'confirmation',
+    telephone: telephoneNormalise,
+    reservationId: reservation.id,
+    contenuSms: smsConfirmation({
+      pharmacie: pharmacie?.nom ?? '',
+      date,
+      heure,
+      telephonePharmacie: pharmacie?.telephone ?? '',
+    }),
+  })
 
   return NextResponse.json({ success: true })
 }

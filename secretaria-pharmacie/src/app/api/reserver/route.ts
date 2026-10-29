@@ -3,7 +3,9 @@ import { format } from 'date-fns'
 import { toZonedTime } from 'date-fns-tz'
 import { NextRequest, NextResponse } from 'next/server'
 import { getUserRole } from '@/lib/auth/getRole'
-import { envoyerSms, normaliserNumeroFrancais } from '@/lib/sms/envoyerSms'
+import { envoyerMessage } from '@/lib/messaging/envoyerMessage'
+import { formaterDateHeureParis, smsConfirmation } from '@/lib/messaging/contenus'
+import { normaliserNumeroFrancais } from '@/lib/sms/envoyerSms'
 import { unwrapEmbed } from '@/lib/supabase/unwrap'
 import { creneauADeLaPlace, recalculerStatutCreneau } from '@/lib/creneaux/recalculerStatutCreneau'
 
@@ -23,7 +25,7 @@ export async function POST(request: NextRequest) {
 
   const { data: creneau } = await supabaseAdmin
     .from('creneaux')
-    .select('id, debut, pharmacie_id, pharmacies(nom, adresse)')
+    .select('id, debut, pharmacie_id, pharmacies(nom, adresse, telephone)')
     .eq('id', creneauId)
     .single()
 
@@ -103,7 +105,8 @@ export async function POST(request: NextRequest) {
 
   await recalculerStatutCreneau(creneauId)
 
-  const pharmacie = unwrapEmbed<{ nom: string; adresse: string }>(creneau.pharmacies)
+  const pharmacie = unwrapEmbed<{ nom: string; adresse: string; telephone: string }>(creneau.pharmacies)
+  const { date, heure } = formaterDateHeureParis(creneau.debut)
   const dateFormatee = new Intl.DateTimeFormat('fr-FR', {
     weekday: 'long',
     day: 'numeric',
@@ -112,11 +115,18 @@ export async function POST(request: NextRequest) {
     minute: '2-digit',
     timeZone: 'Europe/Paris',
   }).format(new Date(creneau.debut))
-  const lienGestion = `${process.env.NEXT_PUBLIC_SITE_URL}/rdv/gestion/${reservation.token_gestion}`
 
-  const message = `RDV confirmé chez ${pharmacie?.nom} le ${dateFormatee}. Gérer/annuler : ${lienGestion}`
-
-  await envoyerSms(telephoneNormalise, message)
+  await envoyerMessage({
+    type: 'confirmation',
+    telephone: telephoneNormalise,
+    reservationId: reservation.id,
+    contenuSms: smsConfirmation({
+      pharmacie: pharmacie?.nom ?? '',
+      date,
+      heure,
+      telephonePharmacie: pharmacie?.telephone ?? '',
+    }),
+  })
 
   return NextResponse.json({
     success: true,

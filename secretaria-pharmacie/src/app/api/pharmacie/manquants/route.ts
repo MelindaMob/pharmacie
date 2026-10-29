@@ -1,7 +1,9 @@
 import { createClient } from '@supabase/supabase-js'
 import { getUserRole } from '@/lib/auth/getRole'
 import { unwrapEmbed } from '@/lib/supabase/unwrap'
-import { envoyerSms, normaliserNumeroFrancais } from '@/lib/sms/envoyerSms'
+import { envoyerMessage } from '@/lib/messaging/envoyerMessage'
+import { smsManquant } from '@/lib/messaging/contenus'
+import { normaliserNumeroFrancais } from '@/lib/sms/envoyerSms'
 import { NextRequest, NextResponse } from 'next/server'
 
 const supabaseAdmin = createClient(
@@ -133,14 +135,16 @@ export async function PATCH(request: NextRequest) {
     const pharmacie = unwrapEmbed<{ nom: string }>(data.pharmacies)
     const telephone = normaliserNumeroFrancais(data.patient_telephone as string)
 
-    const resultat = await envoyerSms(
+    const resultat = await envoyerMessage({
+      type: 'manquant',
       telephone,
-      `Bonjour, votre produit ${medicament?.denomination ?? (data.produit_libre as string | null) ?? ''} est disponible à la pharmacie ${
-        pharmacie?.nom ?? ''
-      }.`
-    )
+      contenuSms: smsManquant({
+        produit: medicament?.denomination ?? (data.produit_libre as string | null) ?? '',
+        pharmacie: pharmacie?.nom ?? '',
+      }),
+    })
 
-    if (resultat.success) {
+    if (resultat.ok) {
       await supabaseAdmin.from('manquants').update({ sms_envoye: true }).eq('id', id)
       smsEnvoye = true
     }
