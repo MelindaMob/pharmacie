@@ -7,7 +7,7 @@ export default async function DashboardNav({
   bloque = false,
   children,
 }: {
-  actif: 'calendrier' | 'parametres' | 'messages' | 'manquants' | 'informations' | 'garde' | 'aide'
+  actif: 'calendrier' | 'parametres' | 'messages' | 'manquants' | 'informations' | 'garde' | 'appels' | 'aide'
   nbNonLus?: number
   /** true tant que les horaires ne sont pas configurés : grise tous les onglets sauf Paramètres et Aide. */
   bloque?: boolean
@@ -41,6 +41,12 @@ export default async function DashboardNav({
       badge: nbNonLus,
     },
     { key: 'manquants', label: 'Manquants', href: '/dashboard-pharmacie/manquants' },
+    {
+      key: 'appels',
+      label: 'Messages reçus',
+      labelCourt: 'Reçus',
+      href: '/dashboard-pharmacie/appels',
+    },
     {
       key: 'informations',
       label: 'Infos supplémentaires',
