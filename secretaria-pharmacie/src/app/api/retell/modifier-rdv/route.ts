@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js'
 import { NextRequest, NextResponse } from 'next/server'
 import { envoyerSms, normaliserNumeroFrancais } from '@/lib/sms/envoyerSms'
+import { lienGestionRdv, smsModifie } from '@/lib/messaging/contenus'
 import { unwrapEmbed } from '@/lib/supabase/unwrap'
 import { recalculerStatutCreneau } from '@/lib/creneaux/recalculerStatutCreneau'
 
@@ -107,10 +108,13 @@ export async function POST(request: NextRequest) {
   }).format(new Date(nouveau.debut))
 
   const pharmacie = unwrapEmbed<{ nom: string }>(ancien.pharmacies)
-  const lienGestion = `${process.env.NEXT_PUBLIC_SITE_URL}/rdv/gestion/${reservation.token_gestion}`
   await envoyerSms(
     telephone,
-    `RDV modifié chez ${pharmacie?.nom ?? 'la pharmacie'} : ${dateFormatee}. Gérer/annuler : ${lienGestion}`
+    smsModifie({
+      pharmacie: pharmacie?.nom ?? 'la pharmacie',
+      dateFormatee,
+      lienGestion: lienGestionRdv(reservation.token_gestion),
+    })
   )
 
   return reponse(true, `C'est modifié ! Votre rendez-vous est maintenant le ${dateFormatee}. Vous allez recevoir un SMS.`)

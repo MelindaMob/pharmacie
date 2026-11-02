@@ -1,7 +1,7 @@
 import { createClient } from '@supabase/supabase-js'
 import { NextRequest, NextResponse } from 'next/server'
 import { envoyerMessage } from '@/lib/messaging/envoyerMessage'
-import { formaterDateHeureParis, smsRappel } from '@/lib/messaging/contenus'
+import { lienGestionRdv, smsRappel } from '@/lib/messaging/contenus'
 import { unwrapEmbed } from '@/lib/supabase/unwrap'
 
 const supabaseAdmin = createClient(
@@ -19,7 +19,7 @@ async function envoyerRappel(reservationId: string) {
   const { data: reservation } = await supabaseAdmin
     .from('reservations')
     .select(
-      'id, client_telephone, statut, creneaux(debut, pharmacies(nom, telephone))'
+      'id, client_telephone, statut, token_gestion, creneaux(debut, pharmacies(nom, telephone))'
     )
     .eq('id', reservationId)
     .maybeSingle()
@@ -37,15 +37,22 @@ async function envoyerRappel(reservationId: string) {
     return NextResponse.json({ error: 'Créneau ou pharmacie introuvable' }, { status: 404 })
   }
 
-  const { heure } = formaterDateHeureParis(creneau.debut)
+  const dateFormatee = new Intl.DateTimeFormat('fr-FR', {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+    hour: '2-digit',
+    minute: '2-digit',
+    timeZone: 'Europe/Paris',
+  }).format(new Date(creneau.debut))
   const envoi = await envoyerMessage({
     type: 'rappel',
     telephone: reservation.client_telephone as string,
     reservationId: reservation.id as string,
     contenuSms: smsRappel({
       pharmacie: pharmacie.nom ?? '',
-      heure,
-      telephonePharmacie: pharmacie.telephone ?? '',
+      dateFormatee,
+      lienGestion: lienGestionRdv(reservation.token_gestion as string),
     }),
   })
 

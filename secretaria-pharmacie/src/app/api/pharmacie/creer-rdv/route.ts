@@ -2,7 +2,7 @@ import { createClient } from '@supabase/supabase-js'
 import { NextRequest, NextResponse } from 'next/server'
 import { getUserRole } from '@/lib/auth/getRole'
 import { envoyerMessage } from '@/lib/messaging/envoyerMessage'
-import { formaterDateHeureParis, smsConfirmation } from '@/lib/messaging/contenus'
+import { lienGestionRdv, smsConfirmation } from '@/lib/messaging/contenus'
 import { normaliserNumeroFrancais } from '@/lib/sms/envoyerSms'
 import { unwrapEmbed } from '@/lib/supabase/unwrap'
 import { creneauADeLaPlace, recalculerStatutCreneau } from '@/lib/creneaux/recalculerStatutCreneau'
@@ -104,7 +104,14 @@ export async function POST(request: NextRequest) {
   await recalculerStatutCreneau(creneauId)
 
   const pharmacie = unwrapEmbed<{ nom: string; telephone: string }>(creneau.pharmacies)
-  const { date, heure } = formaterDateHeureParis(creneau.debut)
+  const dateFormatee = new Intl.DateTimeFormat('fr-FR', {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+    hour: '2-digit',
+    minute: '2-digit',
+    timeZone: 'Europe/Paris',
+  }).format(new Date(creneau.debut))
 
   await envoyerMessage({
     type: 'confirmation',
@@ -112,9 +119,8 @@ export async function POST(request: NextRequest) {
     reservationId: reservation.id,
     contenuSms: smsConfirmation({
       pharmacie: pharmacie?.nom ?? '',
-      date,
-      heure,
-      telephonePharmacie: pharmacie?.telephone ?? '',
+      dateFormatee,
+      lienGestion: lienGestionRdv(reservation.token_gestion),
     }),
   })
 

@@ -1,48 +1,41 @@
-import { format } from 'date-fns'
-import { toZonedTime } from 'date-fns-tz'
-import { versGsm7 } from './gsm7'
-
-const TZ = 'Europe/Paris'
-
-function nomPharmacieSms(nom: string): string {
-  return nom.trim().slice(0, 30)
+export function lienGestionRdv(token: string): string {
+  return `${process.env.NEXT_PUBLIC_SITE_URL}/rdv/gestion/${token}`
 }
 
-/** Date 12/11 et heure 14h00, fuseau Europe/Paris. */
-export function formaterDateHeureParis(iso: string): { date: string; heure: string } {
-  const zoned = toZonedTime(new Date(iso), TZ)
-  return {
-    date: format(zoned, 'dd/MM'),
-    heure: format(zoned, "HH'h'mm"),
-  }
-}
-
+/** Textes d’origine Twilio : date longue + lien de gestion. */
 export function smsConfirmation(params: {
   pharmacie: string
-  date: string
-  heure: string
-  telephonePharmacie: string
+  dateFormatee: string
+  lienGestion: string
 }): string {
-  return (
-    `${nomPharmacieSms(params.pharmacie)} : votre RDV est confirmé le ${params.date} à ${params.heure}. ` +
-    `Pour annuler ou modifier, appelez le ${params.telephonePharmacie}.`
-  )
+  return `RDV confirmé chez ${params.pharmacie} le ${params.dateFormatee}. Gérer/annuler : ${params.lienGestion}`
+}
+
+export function smsDeplace(params: {
+  pharmacie: string
+  dateFormatee: string
+  lienGestion: string
+}): string {
+  return `RDV déplacé chez ${params.pharmacie} : ${params.dateFormatee}. Gérer/annuler : ${params.lienGestion}`
+}
+
+export function smsModifie(params: {
+  pharmacie: string
+  dateFormatee: string
+  lienGestion: string
+}): string {
+  return `RDV modifié chez ${params.pharmacie} : ${params.dateFormatee}. Gérer/annuler : ${params.lienGestion}`
 }
 
 export function smsRappel(params: {
   pharmacie: string
-  heure: string
-  telephonePharmacie: string
+  dateFormatee: string
+  lienGestion: string
 }): string {
-  return (
-    `Rappel ${nomPharmacieSms(params.pharmacie)} : votre RDV est aujourd'hui à ${params.heure}. ` +
-    `Pour annuler, appelez le ${params.telephonePharmacie}.`
-  )
+  return `Rappel : RDV chez ${params.pharmacie} le ${params.dateFormatee}. Gérer/annuler : ${params.lienGestion}`
 }
 
-/** Texte actuel des manquants, passé en GSM-7. Pas de motif médical au-delà du nom de produit. */
+/** Texte d’origine Twilio, nom de pharmacie complet. */
 export function smsManquant(params: { produit: string; pharmacie: string }): string {
-  return versGsm7(
-    `Bonjour, votre produit ${params.produit} est disponible à la pharmacie ${nomPharmacieSms(params.pharmacie)}.`
-  )
+  return `Bonjour, votre produit ${params.produit} est disponible à la pharmacie ${params.pharmacie}.`
 }
