@@ -77,7 +77,7 @@ export default async function MessagesClientPage() {
   return (
     <NavDashboardClient actif="messages" nbNonLus={nbNonLus}>
       <h1 className="font-[family-name:var(--font-display)] text-2xl text-[var(--color-ink)] mb-6">
-        Messages
+        Tchats
       </h1>
       <ListeConversations reservations={reservationsAvecMessages} role="client" />
     </NavDashboardClient>

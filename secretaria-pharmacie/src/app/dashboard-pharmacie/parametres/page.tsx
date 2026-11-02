@@ -141,7 +141,7 @@ export default async function ParametresPharmaciePage() {
         {bloque && (
           <div className="mb-6 rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900">
             Configurez et enregistrez vos horaires d&apos;ouverture ci-dessous pour débloquer le
-            reste du tableau de bord (calendrier, messages, manquants, infos supplémentaires).
+            reste du tableau de bord (calendrier, tchats, manquants, infos supplémentaires).
           </div>
         )}
 

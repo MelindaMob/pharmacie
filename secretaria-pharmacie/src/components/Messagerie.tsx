@@ -96,7 +96,7 @@ export default function Messagerie({
 
   return (
     <div className={embedded ? '' : 'border rounded-lg p-4'}>
-      {!embedded && <h3 className="font-semibold text-sm mb-3">Messages</h3>}
+      {!embedded && <h3 className="font-semibold text-sm mb-3">Tchats</h3>}
 
       <div className="space-y-2 max-h-64 overflow-y-auto mb-3">
         {messages.length === 0 && (

@@ -36,7 +36,7 @@ export default async function DashboardNav({
     { key: 'calendrier', label: 'Calendrier', href: '/dashboard-pharmacie' },
     {
       key: 'messages',
-      label: 'Messages',
+      label: 'Tchats',
       href: '/dashboard-pharmacie/messages',
       badge: nbNonLus,
     },

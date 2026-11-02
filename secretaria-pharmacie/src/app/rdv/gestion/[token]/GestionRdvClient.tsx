@@ -228,7 +228,7 @@ export default function GestionRdvClient({
           <div className="bg-[var(--color-surface)] rounded-t-2xl sm:rounded-2xl p-5 max-w-md w-full max-h-[90vh] overflow-y-auto shadow-xl">
             <div className="flex justify-between items-center mb-4">
               <h2 className="font-[family-name:var(--font-display)] text-lg text-[var(--color-ink)]">
-                Messages
+                Tchats
               </h2>
               <button
                 type="button"

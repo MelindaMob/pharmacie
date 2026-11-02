@@ -44,7 +44,7 @@ export default async function MessagesPharmaciePage() {
     <DashboardNav actif="messages" nbNonLus={nbNonLus}>
       <div className="max-w-3xl">
         <h1 className="font-[family-name:var(--font-display)] text-xl text-[var(--color-ink)] mb-6">
-          Messages
+          Tchats
         </h1>
         <ListeConversations reservations={reservations} role="pharmacie" />
       </div>

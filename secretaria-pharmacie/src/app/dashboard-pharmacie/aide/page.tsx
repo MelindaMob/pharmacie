@@ -43,7 +43,7 @@ export default async function AidePage() {
           <p>
             À l&apos;enregistrement, les créneaux des 4 prochaines semaines sont régénérés
             automatiquement (les rendez-vous déjà pris sont conservés). Tant que ces horaires
-            ne sont pas enregistrés, le reste du tableau de bord (Calendrier, Messages,
+            ne sont pas enregistrés, le reste du tableau de bord (Calendrier, Tchats,
             Manquants, Infos supplémentaires) reste grisé.
           </p>
         </Section>

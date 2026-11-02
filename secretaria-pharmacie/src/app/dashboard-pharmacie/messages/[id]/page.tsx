@@ -47,7 +47,7 @@ export default async function ConversationPharmaciePage({
           href="/dashboard-pharmacie/messages"
           className="text-sm text-[var(--color-ink-soft)] hover:underline"
         >
-          ← Retour aux messages
+          ← Retour aux tchats
         </Link>
         <h2 className="font-[family-name:var(--font-display)] text-xl text-[var(--color-ink)] mt-2 mb-1">
           RDV — {reservation.client_nom}

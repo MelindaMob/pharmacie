@@ -18,7 +18,7 @@ export function NavDashboardClient({
         { key: 'rdv', label: 'Rendez-vous', href: '/dashboard-client' },
         {
           key: 'messages',
-          label: 'Messages',
+          label: 'Tchats',
           href: '/dashboard-client/messages',
           badge: nbNonLus,
         },

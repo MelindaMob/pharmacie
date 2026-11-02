@@ -201,7 +201,7 @@ export default function DetailReservation({
           <div className="bg-[var(--color-surface)] rounded-xl p-5 max-w-md w-full max-h-[85vh] overflow-y-auto">
             <div className="flex justify-between items-center mb-4">
               <h2 className="font-[family-name:var(--font-display)] text-lg text-[var(--color-ink)]">
-                Messages
+                Tchats
               </h2>
               <button
                 type="button"

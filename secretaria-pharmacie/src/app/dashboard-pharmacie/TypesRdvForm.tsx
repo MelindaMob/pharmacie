@@ -25,6 +25,49 @@ type TypeRdvLigne = {
 const DUREES_MINUTES = Array.from({ length: 60 }, (_, i) => i + 1)
 const CAPACITES = [1, 2, 3, 4, 5, 6, 7, 8]
 
+const JOURS_LABEL: Record<string, string> = {
+  lundi: 'Lundi',
+  mardi: 'Mardi',
+  mercredi: 'Mercredi',
+  jeudi: 'Jeudi',
+  vendredi: 'Vendredi',
+  samedi: 'Samedi',
+  dimanche: 'Dimanche',
+}
+const JOURS_ORDRE = Object.keys(JOURS_LABEL)
+
+function heureCourte(h: string | null | undefined) {
+  return (h ?? '').slice(0, 5)
+}
+
+function dateFr(iso: string) {
+  const [y, m, d] = iso.slice(0, 10).split('-')
+  return y && m && d ? `${d}/${m}/${y}` : iso
+}
+
+function resumeFenetres(fenetres: Fenetre[]) {
+  const parJour = new Map<string, string[]>()
+  for (const f of fenetres) {
+    const liste = parJour.get(f.jour) ?? []
+    liste.push(`${heureCourte(f.debut)}–${heureCourte(f.fin)}`)
+    parJour.set(f.jour, liste)
+  }
+  return JOURS_ORDRE.filter((j) => parJour.has(j)).map((j) => {
+    const label = JOURS_LABEL[j] ?? j
+    return `${label} ${parJour.get(j)!.join(', ')}`
+  })
+}
+
+function resumeExceptions(exceptions: Exception[]) {
+  return exceptions.map((e) => {
+    const dates =
+      e.date_debut === e.date_fin
+        ? dateFr(e.date_debut)
+        : `${dateFr(e.date_debut)} → ${dateFr(e.date_fin)}`
+    return e.ferme ? `${dates} fermé` : `${dates} ${heureCourte(e.debut)}–${heureCourte(e.fin)}`
+  })
+}
+
 type Fenetre = { id: string; jour: string; debut: string; fin: string }
 type Exception = {
   id: string
@@ -63,7 +106,15 @@ export default function TypesRdvForm({
   const [loading, setLoading] = useState<string | null>(null)
   const [message, setMessage] = useState('')
   const [erreur, setErreur] = useState('')
-  const [ouverts, setOuverts] = useState<Set<string>>(new Set())
+  const [ouverts, setOuverts] = useState<Set<string>>(() => {
+    const ids = new Set<string>()
+    for (const t of typesRdv) {
+      const aFenetres = (fenetresParTypeId[t.id] ?? []).length > 0
+      const aExceptions = (exceptionsParTypeId[t.id] ?? []).length > 0
+      if (t.actif && (aFenetres || aExceptions)) ids.add(t.catalogue_id)
+    }
+    return ids
+  })
   const [equipes, setEquipes] = useState<Record<string, string[]>>(equipeParTypeId)
   const router = useRouter()
 
@@ -257,6 +308,11 @@ export default function TypesRdvForm({
                     : DUREES_MINUTES
                 const equipeType = ligne ? (equipes[ligne.id] ?? []) : []
                 const aEquipe = equipeType.length > 0
+                const fenetresType = ligne ? (fenetresParTypeId[ligne.id] ?? []) : []
+                const exceptionsType = ligne ? (exceptionsParTypeId[ligne.id] ?? []) : []
+                const resumeHebdo = resumeFenetres(fenetresType)
+                const resumeDerog = resumeExceptions(exceptionsType)
+                const aCreneauxSpecifiques = resumeHebdo.length > 0 || resumeDerog.length > 0
                 const capacites =
                   ligne && !CAPACITES.includes(ligne.capacite)
                     ? [...CAPACITES, ligne.capacite].sort((a, b) => a - b)
@@ -317,11 +373,31 @@ export default function TypesRdvForm({
                           onClick={() => toggleOuvert(item.id)}
                           className="text-xs underline text-gray-500 shrink-0 py-1"
                         >
-                          {estOuvert ? 'Masquer' : 'Créneaux spécifiques'}
+                          {estOuvert
+                            ? 'Masquer'
+                            : aCreneauxSpecifiques
+                              ? 'Modifier les créneaux'
+                              : 'Créneaux spécifiques'}
                         </button>
                       </div>
                     )}
                     </div>
+                    {actif && ligne && aCreneauxSpecifiques && (
+                      <div className="mt-1.5 ml-7 rounded-md border border-[var(--color-line)] bg-[var(--color-surface)] px-3 py-2 text-xs text-[var(--color-ink)]">
+                        {resumeHebdo.length > 0 && (
+                          <p>
+                            <span className="font-semibold">Créneaux spécifiques : </span>
+                            {resumeHebdo.join(' · ')}
+                          </p>
+                        )}
+                        {resumeDerog.length > 0 && (
+                          <p className={resumeHebdo.length > 0 ? 'mt-0.5' : ''}>
+                            <span className="font-semibold">Dérogations : </span>
+                            {resumeDerog.join(' · ')}
+                          </p>
+                        )}
+                      </div>
+                    )}
                     {actif && ligne && equipe.length > 0 && (
                       <TypeRdvEquipe
                         pharmacieId={pharmacieId}
