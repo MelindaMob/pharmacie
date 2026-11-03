@@ -131,6 +131,21 @@ function plagesEffectivesPourType(
   return plagesPharmacieJour
 }
 
+/** Lit toutes les lignes d'une requête Supabase (limite de 1 000 lignes par page). */
+async function toutesLesLignes<T>(
+  page: (de: number, a: number) => PromiseLike<{ data: T[] | null; error: unknown }>
+): Promise<{ data: T[]; error: unknown }> {
+  const taille = 1000
+  const toutes: T[] = []
+  for (let de = 0; ; de += taille) {
+    const { data, error } = await page(de, de + taille - 1)
+    if (error) return { data: toutes, error }
+    toutes.push(...(data ?? []))
+    if (!data || data.length < taille) break
+  }
+  return { data: toutes, error: null }
+}
+
 export async function generateCreneauxPourPharmacie(
   pharmacieId: string,
   nbJours: number = 28 // 4 semaines
@@ -274,13 +289,18 @@ export async function generateCreneauxPourPharmacie(
     TZ
   )
 
-  const { data: creneauxProteges, error: protegesError } = await supabase
-    .from('reservations')
-    .select('creneau_id, creneaux!inner(pharmacie_id, debut)')
-    .eq('creneaux.pharmacie_id', pharmacieId)
-    .gte('creneaux.debut', debutPeriodeUtc.toISOString())
-    .lt('creneaux.debut', finPeriodeUtc.toISOString())
-    .neq('statut', 'annule')
+  const { data: creneauxProteges, error: protegesError } = await toutesLesLignes<{ creneau_id: string | null }>(
+    (de, a) =>
+      supabase
+        .from('reservations')
+        .select('id, creneau_id, creneaux!inner(pharmacie_id, debut)')
+        .eq('creneaux.pharmacie_id', pharmacieId)
+        .gte('creneaux.debut', debutPeriodeUtc.toISOString())
+        .lt('creneaux.debut', finPeriodeUtc.toISOString())
+        .neq('statut', 'annule')
+        .order('id')
+        .range(de, a)
+  )
 
   if (protegesError) {
     return { success: false, count: 0, error: messageErreur(protegesError) }
@@ -292,13 +312,22 @@ export async function generateCreneauxPourPharmacie(
       .filter((id): id is string => typeof id === 'string')
   )
 
-  const { data: anciensLibres, error: selectError } = await supabase
-    .from('creneaux')
-    .select('id, type_rdv_id, debut, fin')
-    .eq('pharmacie_id', pharmacieId)
-    .gte('debut', debutPeriodeUtc.toISOString())
-    .lt('debut', finPeriodeUtc.toISOString())
-    .eq('statut', 'disponible')
+  const { data: anciensLibres, error: selectError } = await toutesLesLignes<{
+    id: string
+    type_rdv_id: string
+    debut: string
+    fin: string
+  }>((de, a) =>
+    supabase
+      .from('creneaux')
+      .select('id, type_rdv_id, debut, fin')
+      .eq('pharmacie_id', pharmacieId)
+      .gte('debut', debutPeriodeUtc.toISOString())
+      .lt('debut', finPeriodeUtc.toISOString())
+      .in('statut', ['disponible', 'reserve'])
+      .order('id')
+      .range(de, a)
+  )
 
   if (selectError) {
     return { success: false, count: 0, error: messageErreur(selectError) }
