@@ -10,6 +10,28 @@ const JOURS_ORDRE = [
   ['dimanche', 'Dim'],
 ] as const
 
+type Plage = { debut: string; fin: string }
+
+/** Nouveau format : tableau de plages ; ancien : un seul {debut, fin}. */
+function versPlages(valeur: unknown): Plage[] {
+  if (!valeur) return []
+  if (Array.isArray(valeur)) {
+    return valeur.filter(
+      (p): p is Plage =>
+        !!p && typeof p === 'object' && typeof p.debut === 'string' && typeof p.fin === 'string'
+    )
+  }
+  if (typeof valeur === 'object' && valeur !== null && 'debut' in valeur && 'fin' in valeur) {
+    const p = valeur as Plage
+    if (typeof p.debut === 'string' && typeof p.fin === 'string') return [p]
+  }
+  return []
+}
+
+function libellePlage(p: Plage) {
+  return `${p.debut.slice(0, 5)} – ${p.fin.slice(0, 5)}`
+}
+
 export default function PharmacyTicketCard({
   nom,
   adresse,
@@ -19,7 +41,7 @@ export default function PharmacyTicketCard({
   nom: string
   adresse: string
   telephone: string
-  horaires: Record<string, { debut: string; fin: string } | null> | null
+  horaires: Record<string, unknown> | null
 }) {
   return (
     <div className="ticket-perforation bg-[var(--color-surface)] rounded-t-xl border border-[var(--color-line)] p-6 pb-8">
@@ -44,12 +66,15 @@ export default function PharmacyTicketCard({
           </p>
           <div className="space-y-1 font-[family-name:var(--font-mono)] text-sm">
             {JOURS_ORDRE.map(([key, label]) => {
-              const h = horaires[key]
+              const plages = versPlages(horaires[key])
+              const ouvert = plages.length > 0
               return (
-                <div key={key} className="flex justify-between">
+                <div key={key} className="flex justify-between gap-3">
                   <span className="text-[var(--color-ink-soft)]">{label}</span>
-                  <span className={h ? 'text-[var(--color-ink)]' : 'text-[var(--color-line)]'}>
-                    {h ? `${h.debut} – ${h.fin}` : 'Fermé'}
+                  <span
+                    className={`text-right ${ouvert ? 'text-[var(--color-ink)]' : 'text-[var(--color-line)]'}`}
+                  >
+                    {ouvert ? plages.map(libellePlage).join(' · ') : 'Fermé'}
                   </span>
                 </div>
               )

@@ -25,6 +25,7 @@ export async function PATCH(request: NextRequest) {
     retellPhoneNumber,
     numeroGarde,
     gardeSeule,
+    rappelSmsActif,
     numeroSmsGarde,
     email,
   } = body as {
@@ -37,6 +38,7 @@ export async function PATCH(request: NextRequest) {
     retellPhoneNumber?: string
     numeroGarde?: string
     gardeSeule?: boolean
+    rappelSmsActif?: boolean
     numeroSmsGarde?: string
     email?: string
   }
@@ -77,6 +79,9 @@ export async function PATCH(request: NextRequest) {
   }
   if (typeof gardeSeule === 'boolean') {
     updates.garde_seule = gardeSeule
+  }
+  if (typeof rappelSmsActif === 'boolean') {
+    updates.rappel_sms_actif = rappelSmsActif
   }
 
   if (Object.keys(updates).length > 0) {

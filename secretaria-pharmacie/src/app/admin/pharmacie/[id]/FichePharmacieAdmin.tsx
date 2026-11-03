@@ -14,6 +14,7 @@ type PharmacieAdmin = {
   retell_phone_number: string | null
   numero_garde: string | null
   garde_seule: boolean
+  rappel_sms_actif: boolean
   numero_sms_garde: string | null
   email: string
   groupement_nom: string | null
@@ -69,6 +70,7 @@ export default function FichePharmacieAdmin({ pharmacie }: { pharmacie: Pharmaci
   )
   const [gardeActive, setGardeActive] = useState(!!pharmacie.numero_garde?.trim())
   const [gardeSeule, setGardeSeule] = useState(!!pharmacie.garde_seule)
+  const [rappelSms, setRappelSms] = useState(!!pharmacie.rappel_sms_actif)
   const [numeroSmsGarde, setNumeroSmsGarde] = useState(
     pharmacie.numero_sms_garde ? normaliserNumeroFrancais(pharmacie.numero_sms_garde) : ''
   )
@@ -87,6 +89,7 @@ export default function FichePharmacieAdmin({ pharmacie }: { pharmacie: Pharmaci
     )
     setGardeActive(!!pharmacie.numero_garde?.trim())
     setGardeSeule(!!pharmacie.garde_seule)
+    setRappelSms(!!pharmacie.rappel_sms_actif)
     setNumeroSmsGarde(
       pharmacie.numero_sms_garde ? normaliserNumeroFrancais(pharmacie.numero_sms_garde) : ''
     )
@@ -115,6 +118,7 @@ export default function FichePharmacieAdmin({ pharmacie }: { pharmacie: Pharmaci
         retellPhoneNumber,
         numeroGarde: gardeActive ? normaliserNumeroFrancais(numeroGarde) : '',
         gardeSeule: gardeActive && gardeSeule,
+        rappelSmsActif: rappelSms,
         numeroSmsGarde: gardeActive && numeroSmsGarde.trim() ? normaliserNumeroFrancais(numeroSmsGarde) : '',
         email,
         ...(coords ? { lat: coords.lat, lng: coords.lng } : {}),
@@ -261,6 +265,16 @@ export default function FichePharmacieAdmin({ pharmacie }: { pharmacie: Pharmaci
             Garde seule (le numéro reste toujours en mode garde, sans prise de RDV)
           </label>
         )}
+
+        <label className="flex items-center gap-2 text-sm text-[var(--color-ink)] cursor-pointer select-none">
+          <input
+            type="checkbox"
+            checked={rappelSms}
+            onChange={(e) => setRappelSms(e.target.checked)}
+            className="rounded border-[var(--color-line)]"
+          />
+          Rappel par SMS avant le rendez-vous (option)
+        </label>
 
         {erreur && <p className="text-red-600 text-sm">{erreur}</p>}
         {message && <p className="text-[var(--color-accent)] text-sm">{message}</p>}
