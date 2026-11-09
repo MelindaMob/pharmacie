@@ -3,6 +3,7 @@ import { getUserRole } from '@/lib/auth/getRole'
 import { redirect } from 'next/navigation'
 import DashboardNav from '../DashboardNav'
 import InformationsForm from './InformationsForm'
+import ServicesForm from './ServicesForm'
 import { compterNonLusPharmacie } from '@/lib/messages/nonLus'
 import { horairesSontConfigures } from '@/lib/pharmacie/onboarding'
 
@@ -29,6 +30,12 @@ export default async function InformationsPage() {
     .eq('pharmacie_id', role.id)
     .order('created_at', { ascending: false })
 
+  const { data: pharma } = await supabaseAdmin
+    .from('pharmacies')
+    .select('services_proposes')
+    .eq('id', role.id)
+    .single()
+
   return (
     <DashboardNav actif="informations" nbNonLus={nbNonLus}>
       <div className="max-w-2xl">
@@ -43,6 +50,11 @@ export default async function InformationsPage() {
             Aide
           </a>
         </div>
+
+        <ServicesForm
+          pharmacieId={role.id}
+          servicesInitiaux={(pharma?.services_proposes as string[] | null) ?? []}
+        />
 
         <InformationsForm pharmacieId={role.id} infos={data ?? []} />
       </div>
