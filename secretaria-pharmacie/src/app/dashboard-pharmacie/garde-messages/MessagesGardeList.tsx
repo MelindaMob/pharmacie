@@ -55,7 +55,7 @@ export default function MessagesGardeList({ messages }: { messages: MessageGarde
   const [erreur, setErreur] = useState('')
   const [masquerTraites, setMasquerTraites] = useState(true)
   const [filtre, setFiltre] = useState<string>('tous')
-  const [tri, setTri] = useState<'priorite' | 'date'>('priorite')
+  const [tri, setTri] = useState<'priorite' | 'recent' | 'ancien'>('priorite')
   const router = useRouter()
 
   const basculer = async (m: MessageGarde) => {
@@ -81,9 +81,9 @@ export default function MessagesGardeList({ messages }: { messages: MessageGarde
     .sort(
       (a, b) => {
         const parDate = new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-        return tri === 'priorite'
-          ? (ORDRE[a.priorite] ?? 9) - (ORDRE[b.priorite] ?? 9) || parDate
-          : parDate
+        if (tri === 'recent') return parDate
+        if (tri === 'ancien') return -parDate
+        return (ORDRE[a.priorite] ?? 9) - (ORDRE[b.priorite] ?? 9) || parDate
       }
     )
 
@@ -112,12 +112,13 @@ export default function MessagesGardeList({ messages }: { messages: MessageGarde
         </select>
         <select
           value={tri}
-          onChange={(e) => setTri(e.target.value as 'priorite' | 'date')}
+          onChange={(e) => setTri(e.target.value as 'priorite' | 'recent' | 'ancien')}
           className="ui-input !w-auto !py-1.5 !px-2 text-sm"
           aria-label="Trier les appels"
         >
           <option value="priorite">Trier par priorité</option>
-          <option value="date">Trier par date (plus récent d'abord)</option>
+          <option value="recent">Plus récents d'abord</option>
+          <option value="ancien">Plus anciens d'abord</option>
         </select>
       </div>
       {erreur && <p className="text-red-600 text-sm mb-3">{erreur}</p>}
