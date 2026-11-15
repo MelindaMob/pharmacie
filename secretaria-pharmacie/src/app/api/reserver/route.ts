@@ -3,9 +3,8 @@ import { format } from 'date-fns'
 import { toZonedTime } from 'date-fns-tz'
 import { NextRequest, NextResponse } from 'next/server'
 import { getUserRole } from '@/lib/auth/getRole'
-import { envoyerMessage } from '@/lib/messaging/envoyerMessage'
 import { lienGestionRdv, smsConfirmation } from '@/lib/messaging/contenus'
-import { normaliserNumeroFrancais } from '@/lib/sms/envoyerSms'
+import { envoyerSms, normaliserNumeroFrancais } from '@/lib/sms/envoyerSms'
 import { unwrapEmbed } from '@/lib/supabase/unwrap'
 import { creneauADeLaPlace, recalculerStatutCreneau } from '@/lib/creneaux/recalculerStatutCreneau'
 
@@ -115,16 +114,15 @@ export async function POST(request: NextRequest) {
     timeZone: 'Europe/Paris',
   }).format(new Date(creneau.debut))
 
-  await envoyerMessage({
-    type: 'confirmation',
-    telephone: telephoneNormalise,
-    reservationId: reservation.id,
-    contenuSms: smsConfirmation({
+  await envoyerSms(
+    telephoneNormalise,
+    smsConfirmation({
       pharmacie: pharmacie?.nom ?? '',
       dateFormatee,
       lienGestion: lienGestionRdv(reservation.token_gestion),
     }),
-  })
+    { source: 'confirmation', pharmacieId: creneau.pharmacie_id }
+  )
 
   return NextResponse.json({
     success: true,

@@ -114,7 +114,8 @@ export async function POST(request: NextRequest) {
       pharmacie: pharmacie?.nom ?? 'la pharmacie',
       dateFormatee,
       lienGestion: lienGestionRdv(reservation.token_gestion),
-    })
+    }),
+    { source: 'modification', pharmacieId: ancien.pharmacie_id }
   )
 
   return reponse(true, `C'est modifié ! Votre rendez-vous est maintenant le ${dateFormatee}. Vous allez recevoir un SMS.`)

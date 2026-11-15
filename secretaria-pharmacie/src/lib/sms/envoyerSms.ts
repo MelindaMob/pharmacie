@@ -1,5 +1,6 @@
 import twilio from 'twilio'
 import { envoyerMessage } from '@/lib/messaging/envoyerMessage'
+import { loggerSms } from '@/lib/sms/loggerSms'
 
 const client = twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN)
 
@@ -7,12 +8,26 @@ const client = twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TO
  * @deprecated Utiliser envoyerMessage() (Brevo / WhatsApp). Conservé comme
  * wrapper : Twilio n'est plus appelé.
  */
-export async function envoyerSms(numeroDestination: string, message: string) {
+export async function envoyerSms(
+  numeroDestination: string,
+  message: string,
+  options?: { source?: string; pharmacieId?: string | null }
+) {
   const r = await envoyerMessage({
     type: 'autre',
     telephone: numeroDestination,
     contenuSms: message,
   })
+  try {
+    await loggerSms({
+      message,
+      source: options?.source ?? 'autre',
+      pharmacieId: options?.pharmacieId ?? null,
+      reussi: r.ok,
+    })
+  } catch {
+    /* le journal ne doit jamais casser l'envoi */
+  }
   return { success: r.ok, error: r.erreur }
 }
 

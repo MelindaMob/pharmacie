@@ -1,6 +1,6 @@
 import { createClient } from '@supabase/supabase-js'
 import { NextRequest, NextResponse } from 'next/server'
-import { envoyerMessage } from '@/lib/messaging/envoyerMessage'
+import { envoyerSms } from '@/lib/sms/envoyerSms'
 import { unwrapEmbed } from '@/lib/supabase/unwrap'
 import { recalculerStatutCreneau } from '@/lib/creneaux/recalculerStatutCreneau'
 
@@ -32,7 +32,9 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Déjà annulé' }, { status: 400 })
   }
 
-  const creneauRow = unwrapEmbed<{ debut: string; pharmacies: unknown }>(reservation.creneaux)
+  const creneauRow = unwrapEmbed<{ debut: string; pharmacie_id: string; pharmacies: unknown }>(
+    reservation.creneaux
+  )
 
   if (!creneauRow?.debut) {
     return NextResponse.json({ error: 'Créneau introuvable' }, { status: 404 })
@@ -65,12 +67,11 @@ export async function POST(request: NextRequest) {
 
   await recalculerStatutCreneau(reservation.creneau_id)
 
-  await envoyerMessage({
-    type: 'autre',
-    telephone: reservation.client_telephone,
-    reservationId: reservation.id,
-    contenuSms: `Votre rendez-vous chez ${pharmacie?.nom} a bien été annulé.`,
-  })
+  await envoyerSms(
+    reservation.client_telephone,
+    `Votre rendez-vous chez ${pharmacie?.nom} a bien été annulé.`,
+    { source: 'annulation', pharmacieId: creneauRow.pharmacie_id }
+  )
 
   return NextResponse.json({ success: true })
 }

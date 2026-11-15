@@ -1,7 +1,7 @@
 import { createClient } from '@supabase/supabase-js'
 import { NextRequest, NextResponse } from 'next/server'
-import { envoyerMessage } from '@/lib/messaging/envoyerMessage'
 import { lienGestionRdv, smsDeplace } from '@/lib/messaging/contenus'
+import { envoyerSms } from '@/lib/sms/envoyerSms'
 import { unwrapEmbed } from '@/lib/supabase/unwrap'
 import { creneauADeLaPlace, recalculerStatutCreneau } from '@/lib/creneaux/recalculerStatutCreneau'
 
@@ -113,16 +113,15 @@ export async function POST(request: NextRequest) {
     timeZone: 'Europe/Paris',
   }).format(new Date(nouveauCreneau.debut))
 
-  await envoyerMessage({
-    type: 'confirmation',
-    telephone: reservation.client_telephone,
-    reservationId: reservation.id,
-    contenuSms: smsDeplace({
+  await envoyerSms(
+    reservation.client_telephone,
+    smsDeplace({
       pharmacie: pharmacie?.nom ?? '',
       dateFormatee,
       lienGestion: lienGestionRdv(token),
     }),
-  })
+    { source: 'deplacement', pharmacieId: ancien.pharmacie_id }
+  )
 
   return NextResponse.json({
     success: true,

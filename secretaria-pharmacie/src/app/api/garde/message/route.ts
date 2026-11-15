@@ -1,7 +1,6 @@
 import { createClient } from '@supabase/supabase-js'
 import { NextRequest, NextResponse } from 'next/server'
-import { envoyerMessage } from '@/lib/messaging/envoyerMessage'
-import { normaliserNumeroFrancais } from '@/lib/sms/envoyerSms'
+import { envoyerSms, normaliserNumeroFrancais } from '@/lib/sms/envoyerSms'
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -119,12 +118,12 @@ export async function POST(request: NextRequest) {
     const qui = [patientNom, telephoneBrut ? normaliserNumeroFrancais(telephoneBrut) : null]
       .filter(Boolean)
       .join(' ')
-    const sms = await envoyerMessage({
-      type: 'autre',
-      telephone: normaliserNumeroFrancais(numeroSms),
-      contenuSms: `[Garde] ${priorite} ${libelle[priorite]}${qui ? ` - ${qui}` : ''}. Details : espace pharmacie > Appels de garde.`,
-    })
-    smsEnvoye = sms.ok
+    const sms = await envoyerSms(
+      normaliserNumeroFrancais(numeroSms),
+      `[Garde] ${priorite} ${libelle[priorite]}${qui ? ` - ${qui}` : ''}. Details : espace pharmacie > Appels de garde.`,
+      { source: 'garde', pharmacieId }
+    )
+    smsEnvoye = sms.success
     if (smsEnvoye) {
       await supabaseAdmin.from('messages_garde').update({ sms_envoye: true }).eq('id', ligne.id)
     }
