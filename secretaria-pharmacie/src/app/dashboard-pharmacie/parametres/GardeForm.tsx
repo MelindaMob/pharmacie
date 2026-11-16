@@ -29,6 +29,10 @@ export default function GardeForm({
 
   const [debut, setDebut] = useState(versInputLocal(aujourdhui20h))
   const [fin, setFin] = useState(versInputLocal(demain8h))
+  const [numeroGardeSaisi, setNumeroGardeSaisi] = useState(numeroGarde ?? '')
+  const [loadingNumero, setLoadingNumero] = useState(false)
+  const [erreurNumero, setErreurNumero] = useState('')
+  const [messageNumero, setMessageNumero] = useState('')
   const [loading, setLoading] = useState(false)
   const [erreur, setErreur] = useState('')
   const [message, setMessage] = useState('')
@@ -94,6 +98,30 @@ export default function GardeForm({
     router.refresh()
   }
 
+  const enregistrerNumero = async () => {
+    setLoadingNumero(true)
+    setErreurNumero('')
+    setMessageNumero('')
+
+    const res = await fetch('/api/pharmacie/coordonnees', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ numeroGarde: numeroGardeSaisi }),
+    })
+    const data = await res.json()
+    setLoadingNumero(false)
+
+    if (!res.ok) {
+      setErreurNumero(
+        typeof data.error === 'string' ? data.error : "Erreur lors de l'enregistrement"
+      )
+      return
+    }
+
+    setMessageNumero('Numéro de garde enregistré')
+    router.refresh()
+  }
+
   return (
     <div className="ui-panel p-4 sm:p-5 mb-6">
       <div className="flex items-center justify-between mb-2">
@@ -111,16 +139,39 @@ export default function GardeForm({
         Paul fonctionne normalement.
       </p>
 
-      {!numeroOk ? (
-        <div className="mb-4 rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-          Le numéro de la pharmacie de garde n&apos;est pas encore renseigné. Contactez
-          Secretar.IA pour l&apos;activer.
-        </div>
-      ) : (
-        <p className="text-sm mb-4">
-          Transfert des urgences vers :{' '}
-          <span className="font-[family-name:var(--font-mono)]">{numeroGarde}</span>
+      <div className="mb-4">
+        <label className="ui-label">Numéro de transfert des urgences (garde)</label>
+        <input
+          type="tel"
+          value={numeroGardeSaisi}
+          onChange={(e) => setNumeroGardeSaisi(e.target.value)}
+          className="ui-input"
+          inputMode="tel"
+          placeholder="Ex : +33652107571"
+        />
+        <p className="text-xs text-[var(--color-ink-soft)] mt-1.5">
+          C&apos;est le numéro vers lequel Léa transfère les appels urgents quand votre pharmacie
+          est de garde. Vérifiez-le avant chaque période de garde.
         </p>
+        <button
+          type="button"
+          onClick={enregistrerNumero}
+          disabled={loadingNumero}
+          className="ui-btn-primary w-full sm:w-auto mt-3"
+        >
+          {loadingNumero ? 'Enregistrement...' : 'Enregistrer le numéro'}
+        </button>
+        {erreurNumero && <p className="text-red-600 text-sm mt-2">{erreurNumero}</p>}
+        {messageNumero && (
+          <p className="text-sm text-[var(--color-accent)] mt-2">{messageNumero}</p>
+        )}
+      </div>
+
+      {!numeroOk && (
+        <div className="mb-4 rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+          Le numéro de la pharmacie de garde n&apos;est pas encore renseigné. Enregistrez-le
+          ci-dessus pour pouvoir programmer une période de garde.
+        </div>
       )}
 
       <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-end gap-3 mb-4">

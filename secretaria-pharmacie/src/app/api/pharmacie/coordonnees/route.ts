@@ -20,11 +20,12 @@ export async function PATCH(request: NextRequest) {
   }
 
   const body = await request.json()
-  const { adresse, telephone, lat, lng, pharmacieId: pharmacieIdBody } = body as {
+  const { adresse, telephone, lat, lng, numeroGarde, pharmacieId: pharmacieIdBody } = body as {
     adresse?: string
     telephone?: string
     lat?: number
     lng?: number
+    numeroGarde?: string
     pharmacieId?: string
   }
 
@@ -75,6 +76,17 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json({ error: 'Numéro de téléphone invalide' }, { status: 400 })
     }
     updates.telephone = tel
+  }
+
+  if (typeof numeroGarde === 'string') {
+    const garde = normaliserNumeroFrancais(numeroGarde)
+    if (!garde) {
+      return NextResponse.json({ error: 'Le numéro de garde ne peut pas être vide' }, { status: 400 })
+    }
+    if (!estTelephoneFrancaisValide(garde)) {
+      return NextResponse.json({ error: 'Numéro de garde invalide' }, { status: 400 })
+    }
+    updates.numero_garde = garde
   }
 
   if (Object.keys(updates).length > 0) {
