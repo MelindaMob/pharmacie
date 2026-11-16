@@ -70,7 +70,16 @@ export default function GestionPharmacies({
           <tbody>
             {pharmacies.map((p) => (
               <tr key={p.id} className="border-b border-[var(--color-line)] last:border-0">
-                <td className="py-2 font-medium text-[var(--color-ink)]">{p.nom}</td>
+                <td className="py-2 font-medium text-[var(--color-ink)]">
+                  <span className="inline-flex items-center gap-2 flex-wrap">
+                    {p.nom}
+                    {(!p.adresse?.trim() || !p.telephone?.trim()) && (
+                      <span className="text-[10px] font-medium text-amber-900 bg-amber-100 px-1.5 py-0.5 rounded">
+                        Fiche incomplète
+                      </span>
+                    )}
+                  </span>
+                </td>
                 <td className="py-2 text-[var(--color-ink-soft)] min-w-[220px]">
                   {editionAdresseId === p.id ? (
                     <AdresseAutocomplete

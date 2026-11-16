@@ -154,6 +154,13 @@ export default function FichePharmacieAdmin({ pharmacie }: { pharmacie: Pharmaci
         {pharmacie.groupement_nom ? ` · Groupement : ${pharmacie.groupement_nom}` : ''}
       </p>
 
+      {(!pharmacie.adresse?.trim() || !pharmacie.telephone?.trim()) && (
+        <div className="mb-6 rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900 space-y-0.5">
+          {!pharmacie.adresse?.trim() && <p>⚠ Adresse manquante</p>}
+          {!pharmacie.telephone?.trim() && <p>⚠ Téléphone manquant</p>}
+        </div>
+      )}
+
       <div className="ui-panel p-4 sm:p-6 space-y-4 mb-6">
         <div>
           <label className="ui-label">Nom</label>

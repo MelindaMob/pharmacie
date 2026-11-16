@@ -6,6 +6,7 @@ import DashboardNav from '../DashboardNav'
 import HorairesForm from '../HorairesForm'
 import HorairesExceptionnelsForm from './HorairesExceptionnelsForm'
 import GardeForm from './GardeForm'
+import CoordonneesForm from './CoordonneesForm'
 import EquipeForm from '../EquipeForm'
 import TypesRdvForm from '../TypesRdvForm'
 import DelaiAnnulationForm from '../DelaiAnnulationForm'
@@ -29,7 +30,7 @@ export default async function ParametresPharmaciePage() {
 
   const { data: pharmacie } = await supabase
     .from('pharmacies')
-    .select('horaires_ouverture, adresse, delai_annulation_heures, numero_garde, garde_seule')
+    .select('horaires_ouverture, adresse, telephone, delai_annulation_heures, numero_garde, garde_seule')
     .eq('id', role.id)
     .single()
 
@@ -138,6 +139,12 @@ export default async function ParametresPharmaciePage() {
   return (
     <DashboardNav actif="parametres" nbNonLus={nbNonLus} bloque={bloque}>
       <div className="max-w-3xl">
+        {(!pharmacie?.adresse?.trim() || !pharmacie?.telephone?.trim()) && (
+          <div className="mb-6 rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+            Complétez votre adresse et votre téléphone : Léa les utilise au téléphone.
+          </div>
+        )}
+
         {bloque && (
           <div className="mb-6 rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900">
             Configurez et enregistrez vos horaires d&apos;ouverture ci-dessous pour débloquer le
@@ -145,9 +152,11 @@ export default async function ParametresPharmaciePage() {
           </div>
         )}
 
-        <p className="text-sm text-[var(--color-ink-soft)] mb-4 break-words">
-          Adresse : {pharmacie?.adresse || 'Non renseignée par Secretar.IA pour le moment'}
-        </p>
+        <CoordonneesForm
+          pharmacieId={role.id}
+          adresseInitiale={pharmacie?.adresse ?? ''}
+          telephoneInitial={pharmacie?.telephone ?? ''}
+        />
 
         {!gardeSeule && (
           <>
