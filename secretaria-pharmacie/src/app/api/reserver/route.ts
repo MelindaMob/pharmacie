@@ -4,6 +4,7 @@ import { toZonedTime } from 'date-fns-tz'
 import { NextRequest, NextResponse } from 'next/server'
 import { getUserRole } from '@/lib/auth/getRole'
 import { lienGestionRdv, smsConfirmation } from '@/lib/messaging/contenus'
+import { nomPharmacieAffiche } from '@/lib/pharmacie/nomAffiche'
 import { envoyerSms, normaliserNumeroFrancais } from '@/lib/sms/envoyerSms'
 import { unwrapEmbed } from '@/lib/supabase/unwrap'
 import { creneauADeLaPlace, recalculerStatutCreneau } from '@/lib/creneaux/recalculerStatutCreneau'
@@ -117,7 +118,7 @@ export async function POST(request: NextRequest) {
   await envoyerSms(
     telephoneNormalise,
     smsConfirmation({
-      pharmacie: pharmacie?.nom ?? '',
+      pharmacie: nomPharmacieAffiche(pharmacie?.nom),
       dateFormatee,
       lienGestion: lienGestionRdv(reservation.token_gestion),
     }),

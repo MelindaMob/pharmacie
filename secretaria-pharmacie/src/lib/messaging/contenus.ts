@@ -1,3 +1,5 @@
+import { nomPharmacieAffiche } from '@/lib/pharmacie/nomAffiche'
+
 export function lienGestionRdv(token: string): string {
   return `${process.env.NEXT_PUBLIC_SITE_URL}/rdv/gestion/${token}`
 }
@@ -8,7 +10,7 @@ export function smsConfirmation(params: {
   dateFormatee: string
   lienGestion: string
 }): string {
-  return `RDV confirmé chez ${params.pharmacie} le ${params.dateFormatee}. Gérer/annuler : ${params.lienGestion}`
+  return `RDV confirmé chez ${nomPharmacieAffiche(params.pharmacie)} le ${params.dateFormatee}. Gérer/annuler : ${params.lienGestion}`
 }
 
 export function smsDeplace(params: {
@@ -16,7 +18,7 @@ export function smsDeplace(params: {
   dateFormatee: string
   lienGestion: string
 }): string {
-  return `RDV déplacé chez ${params.pharmacie} : ${params.dateFormatee}. Gérer/annuler : ${params.lienGestion}`
+  return `RDV déplacé chez ${nomPharmacieAffiche(params.pharmacie)} : ${params.dateFormatee}. Gérer/annuler : ${params.lienGestion}`
 }
 
 export function smsModifie(params: {
@@ -24,7 +26,7 @@ export function smsModifie(params: {
   dateFormatee: string
   lienGestion: string
 }): string {
-  return `RDV modifié chez ${params.pharmacie} : ${params.dateFormatee}. Gérer/annuler : ${params.lienGestion}`
+  return `RDV modifié chez ${nomPharmacieAffiche(params.pharmacie)} : ${params.dateFormatee}. Gérer/annuler : ${params.lienGestion}`
 }
 
 export function smsRappel(params: {
@@ -32,10 +34,10 @@ export function smsRappel(params: {
   dateFormatee: string
   lienGestion: string
 }): string {
-  return `Rappel : RDV chez ${params.pharmacie} le ${params.dateFormatee}. Gérer/annuler : ${params.lienGestion}`
+  return `Rappel : RDV chez ${nomPharmacieAffiche(params.pharmacie)} le ${params.dateFormatee}. Gérer/annuler : ${params.lienGestion}`
 }
 
 /** Texte d’origine Twilio, nom de pharmacie complet. */
 export function smsManquant(params: { produit: string; pharmacie: string }): string {
-  return `Bonjour, votre produit ${params.produit} est disponible à la pharmacie ${params.pharmacie}.`
+  return `Bonjour, votre produit ${params.produit} est disponible à ${nomPharmacieAffiche(params.pharmacie)}.`
 }

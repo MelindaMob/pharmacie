@@ -2,6 +2,7 @@ import { createClient } from '@supabase/supabase-js'
 import { NextRequest, NextResponse } from 'next/server'
 import { envoyerSms, normaliserNumeroFrancais } from '@/lib/sms/envoyerSms'
 import { lienGestionRdv, smsModifie } from '@/lib/messaging/contenus'
+import { nomPharmacieAffiche } from '@/lib/pharmacie/nomAffiche'
 import { unwrapEmbed } from '@/lib/supabase/unwrap'
 import { recalculerStatutCreneau } from '@/lib/creneaux/recalculerStatutCreneau'
 
@@ -111,7 +112,7 @@ export async function POST(request: NextRequest) {
   await envoyerSms(
     telephone,
     smsModifie({
-      pharmacie: pharmacie?.nom ?? 'la pharmacie',
+      pharmacie: nomPharmacieAffiche(pharmacie?.nom),
       dateFormatee,
       lienGestion: lienGestionRdv(reservation.token_gestion),
     }),

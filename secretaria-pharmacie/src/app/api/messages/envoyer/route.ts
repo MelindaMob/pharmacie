@@ -2,6 +2,7 @@ import { createClient } from '@supabase/supabase-js'
 import { NextRequest, NextResponse } from 'next/server'
 import { envoyerMessage } from '@/lib/messaging/envoyerMessage'
 import { lienGestionRdv, smsRappel } from '@/lib/messaging/contenus'
+import { nomPharmacieAffiche } from '@/lib/pharmacie/nomAffiche'
 import { unwrapEmbed } from '@/lib/supabase/unwrap'
 
 const supabaseAdmin = createClient(
@@ -50,7 +51,7 @@ async function envoyerRappel(reservationId: string) {
     telephone: reservation.client_telephone as string,
     reservationId: reservation.id as string,
     contenuSms: smsRappel({
-      pharmacie: pharmacie.nom ?? '',
+      pharmacie: nomPharmacieAffiche(pharmacie.nom),
       dateFormatee,
       lienGestion: lienGestionRdv(reservation.token_gestion as string),
     }),

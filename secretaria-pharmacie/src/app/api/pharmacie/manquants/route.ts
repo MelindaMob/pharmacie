@@ -2,6 +2,7 @@ import { createClient } from '@supabase/supabase-js'
 import { getUserRole } from '@/lib/auth/getRole'
 import { unwrapEmbed } from '@/lib/supabase/unwrap'
 import { smsManquant } from '@/lib/messaging/contenus'
+import { nomPharmacieAffiche } from '@/lib/pharmacie/nomAffiche'
 import { envoyerSms, normaliserNumeroFrancais } from '@/lib/sms/envoyerSms'
 import { NextRequest, NextResponse } from 'next/server'
 
@@ -138,7 +139,7 @@ export async function PATCH(request: NextRequest) {
       telephone,
       smsManquant({
         produit: medicament?.denomination ?? (data.produit_libre as string | null) ?? '',
-        pharmacie: pharmacie?.nom ?? '',
+        pharmacie: nomPharmacieAffiche(pharmacie?.nom),
       }),
       { source: 'manquant', pharmacieId }
     )

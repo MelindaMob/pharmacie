@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js'
 import { NextRequest, NextResponse } from 'next/server'
 import { lienGestionRdv, smsDeplace } from '@/lib/messaging/contenus'
+import { nomPharmacieAffiche } from '@/lib/pharmacie/nomAffiche'
 import { envoyerSms } from '@/lib/sms/envoyerSms'
 import { unwrapEmbed } from '@/lib/supabase/unwrap'
 import { creneauADeLaPlace, recalculerStatutCreneau } from '@/lib/creneaux/recalculerStatutCreneau'
@@ -116,7 +117,7 @@ export async function POST(request: NextRequest) {
   await envoyerSms(
     reservation.client_telephone,
     smsDeplace({
-      pharmacie: pharmacie?.nom ?? '',
+      pharmacie: nomPharmacieAffiche(pharmacie?.nom),
       dateFormatee,
       lienGestion: lienGestionRdv(token),
     }),

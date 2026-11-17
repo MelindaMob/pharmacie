@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js'
 import { NextRequest, NextResponse } from 'next/server'
+import { nomPharmacieAffiche } from '@/lib/pharmacie/nomAffiche'
 import { envoyerSms } from '@/lib/sms/envoyerSms'
 import { unwrapEmbed } from '@/lib/supabase/unwrap'
 import { recalculerStatutCreneau } from '@/lib/creneaux/recalculerStatutCreneau'
@@ -69,7 +70,7 @@ export async function POST(request: NextRequest) {
 
   await envoyerSms(
     reservation.client_telephone,
-    `Votre rendez-vous chez ${pharmacie?.nom} a bien été annulé.`,
+    `Votre rendez-vous chez ${nomPharmacieAffiche(pharmacie?.nom)} a bien été annulé.`,
     { source: 'annulation', pharmacieId: creneauRow.pharmacie_id }
   )
 
