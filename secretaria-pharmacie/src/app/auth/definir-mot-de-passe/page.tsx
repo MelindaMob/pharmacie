@@ -107,8 +107,8 @@ export default function DefinirMotDePassePage() {
     e.preventDefault()
     if (loading) return
 
-    if (password.length < 6) {
-      setErreur('Le mot de passe doit contenir au moins 6 caractères')
+    if (password.length < 8) {
+      setErreur('Le mot de passe doit contenir au moins 8 caractères')
       return
     }
     if (password !== confirmation) {
@@ -175,7 +175,7 @@ export default function DefinirMotDePassePage() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
-                minLength={6}
+                minLength={8}
                 className="ui-input"
               />
             </div>
@@ -192,7 +192,7 @@ export default function DefinirMotDePassePage() {
                 value={confirmation}
                 onChange={(e) => setConfirmation(e.target.value)}
                 required
-                minLength={6}
+                minLength={8}
                 className="ui-input"
               />
             </div>
